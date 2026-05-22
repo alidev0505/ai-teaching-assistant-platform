@@ -41,17 +41,49 @@ import './App.css';
 
 const AppContent = () => {
   const location = useLocation();
-  const { loading } = useContext(AuthContext); 
+  const { loading, user } = useContext(AuthContext); 
 
+  // 🔥 UI & UX FIX: Hardened, Elegant loading state layout using CSS animations
   if (loading) {
     return (
-      <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <h2>Loading AI Assistant...</h2>
+      <div style={{ 
+        height: '100vh', 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'center', 
+        alignItems: 'center',
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+        color: '#ffffff',
+        fontFamily: "'Segoe UI', Roboto, sans-serif"
+      }}>
+        <div className="ai-spinner" style={{
+          width: '50px',
+          height: '50px',
+          border: '4px solid rgba(255,255,255,0.1)',
+          borderTop: '4px solid #38bdf8',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+          marginBottom: '20px'
+        }}></div>
+        <h2 style={{ fontWeight: '400', letterSpacing: '1px', fontSize: '1.25rem' }}>
+          Initializing SmartTutor Engine...
+        </h2>
+        <style>{`
+          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        `}</style>
       </div>
     );
   }
 
   const isLandingPage = location.pathname === '/';
+
+  // Helper logic to route a user cleanly back to their designated workspace home directory
+  const getDashboardRedirect = () => {
+    if (!user) return <Navigate to="/login" replace />;
+    if (user.role === 'admin') return <Navigate to="/admin" replace />;
+    if (user.role === 'teacher') return <Navigate to="/teacher" replace />;
+    return <Navigate to="/student" replace />;
+  };
 
   return (
     <>
@@ -59,8 +91,8 @@ const AppContent = () => {
 
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={user ? getDashboardRedirect() : <Login />} />
+        <Route path="/signup" element={user ? getDashboardRedirect() : <Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/verify-email/:token" element={<VerifyEmail />} />
@@ -77,11 +109,9 @@ const AppContent = () => {
         <Route path="/course/:courseId/create-quiz" element={
           <ProtectedRoute role="teacher"><CreateQuiz /></ProtectedRoute>
         } />
-        {/* Standard path */}
         <Route path="/quiz/:quizId/take" element={
           <ProtectedRoute role="student"><TakeQuiz /></ProtectedRoute>
         } />
-        {/* Add this for Dashboard compatibility */}
         <Route path="/take-quiz/:quizId" element={
           <ProtectedRoute role="student"><TakeQuiz /></ProtectedRoute>
         } />
@@ -149,8 +179,8 @@ const AppContent = () => {
             <ProtectedRoute role="admin"><AdminCalendar /></ProtectedRoute>
         } />
 
-        {/* Catch All 404 */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* 🔥 SECURITY FIX: Intelligent Route Fallback Matrix */}
+        <Route path="*" element={getDashboardRedirect()} />
 
       </Routes>
     </>

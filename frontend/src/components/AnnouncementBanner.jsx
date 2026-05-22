@@ -5,36 +5,45 @@ const AnnouncementBanner = () => {
   const [announcements, setAnnouncements] = useState([]);
 
   useEffect(() => {
-    const fetch = async () => {
-        try {
-            const res = await getAnnouncements();
-            // Show only the latest 3
-            setAnnouncements(res.data.announcements.slice(0, 3));
-        } catch(e) { console.error(e); }
+    const fetchAlerts = async () => {
+      try {
+        const res = await getAnnouncements();
+        if (res?.data?.announcements) {
+          // Show only the latest 3 announcements safely
+          setAnnouncements(res.data.announcements.slice(0, 3));
+        }
+      } catch (e) { 
+        console.error("Failed to collect backend announcement vectors cleanly:", e); 
+      }
     };
-    fetch();
+    fetchAlerts();
   }, []);
 
   if (announcements.length === 0) return null;
 
-  return (
-    <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {announcements.map(ann => {
-            let bg = '#eff6ff'; let color = '#1e40af'; let border = '#bfdbfe'; let icon = '📢';
-            if (ann.type === 'warning') { bg = '#fffbeb'; color = '#92400e'; border = '#fde68a'; icon = ''; }
-            if (ann.type === 'alert') { bg = '#fef2f2'; color = '#991b1b'; border = '#fecaca'; icon = '🚨'; }
+  const getAlertMetadata = (type) => {
+    switch (type) {
+      case 'alert':
+        return { className: 'ab-type-alert', icon: '🚨' };
+      case 'warning':
+        return { className: 'ab-type-warning', icon: '⚠️' };
+      default:
+        return { className: 'ab-type-info', icon: '📢' };
+    }
+  };
 
-            return (
-                <div key={ann.id} style={{ 
-                    background: bg, color: color, border: `1px solid ${border}`,
-                    padding: '12px 20px', borderRadius: '8px', fontSize: '0.95rem',
-                    display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '500'
-                }}>
-                    <span>{icon}</span>
-                    <span>{ann.content}</span>
-                </div>
-            );
-        })}
+  return (
+    <div className="ab-container">
+      {announcements.map((ann) => {
+        const { className, icon } = getAlertMetadata(ann.type);
+
+        return (
+          <div key={ann.id} className={`ab-banner ${className}`}>
+            <span className="ab-icon">{icon}</span>
+            <span className="ab-content">{ann.content || "System notification notice payload empty."}</span>
+          </div>
+        );
+      })}
     </div>
   );
 };

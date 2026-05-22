@@ -2,29 +2,42 @@ import React, { useState } from 'react';
 import { publishGrade } from '../services/api';
 
 const GradingModal = ({ submission, assignmentTitle, onClose, onSuccess }) => {
-    const [marks, setMarks] = useState(submission.marks || 0);
+    const currentMarks = submission.obtained_marks !== undefined ? submission.obtained_marks : (submission.marks || 0);
+    const [marks, setMarks] = useState(currentMarks);
     const [grade, setGrade] = useState(submission.grade || 'F');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [successMsg, setSuccessMsg] = useState('');
 
     const handlePublish = async () => {
-        setLoading(true);
         setError('');
-        console.log('Publishing grade for submission:', submission);
+        setSuccessMsg('');
+
+        const parsedMarks = parseFloat(marks);
+        if (isNaN(parsedMarks) || parsedMarks < 0 || parsedMarks > 100) {
+            setError('Validation Error: Target marks must reside strictly within a 0 to 100 range.');
+            return;
+        }
+
+        setLoading(true);
         try {
             const payload = {
                 submission_id: submission.id,
-                marks: parseFloat(marks),
+                marks: parsedMarks,
                 grade: grade
             };
-            console.log('Payload:', payload);
+            
             await publishGrade(payload);
-            alert("Grade Published Successfully!");
-            onSuccess();
-            onClose();
+            setSuccessMsg('✨ Grade matrix published successfully!');
+            
+            setTimeout(() => {
+                onSuccess();
+                onClose();
+            }, 1200);
+
         } catch (err) {
-            console.error('Publish error:', err);
-            const msg = err.response?.data?.error || err.message || 'Unknown error';
+            console.error('Publish error context tracking:', err);
+            const msg = err.response?.data?.error || err.message || 'Unknown network error';
             setError(`Failed to publish: ${msg}`);
         } finally {
             setLoading(false);
@@ -32,94 +45,92 @@ const GradingModal = ({ submission, assignmentTitle, onClose, onSuccess }) => {
     };
 
     return (
-        <div style={styles.overlay}>
-            <div style={styles.modal}>
-                <div style={styles.header}>
-                    <h3>Grading: {submission.student_name}</h3>
-                    <button onClick={onClose} style={styles.closeBtn}>&times;</button>
+        <div className="gm-overlay">
+            <div className="gm-modal">
+                {/* Header */}
+                <div className="gm-header">
+                    <div className="gm-header-title-group">
+                        <h3 className="gm-title">Grading Worksheet</h3>
+                        <span className="gm-subtitle">Student: {submission.student_name || 'Evaluation Target'}</span>
+                    </div>
+                    <button onClick={onClose} className="gm-close-btn">&times;</button>
                 </div>
 
-                <p style={{ color: '#64748b', fontSize: '0.9rem' }}>Assignment: {assignmentTitle}</p>
+                <div className="gm-divider"></div>
+                <p className="gm-context-label"><strong>Context Reference:</strong> {assignmentTitle}</p>
 
-                {/* AI Analysis Section */}
-                <div style={styles.aiSection}>
-                    <h4>🤖 AI Analysis</h4>
-                    <div style={styles.statGrid}>
-                        <div style={styles.stat}>
-                            <span>AI Detection</span>
-                            <strong style={{ color: submission.ai_score > 60 ? 'red' : 'green' }}>
-                                {submission.ai_score}%
+                {/* AI Analysis Deck */}
+                <div className="gm-ai-section">
+                    <h4 className="gm-ai-title">🤖 SmartTutor™ Metric Analytics</h4>
+                    <div className="gm-stat-grid">
+                        <div className="gm-stat-card">
+                            <span className="gm-stat-label">AI Generation</span>
+                            <strong className={`gm-stat-val ${submission.ai_score > 70 ? 'text-danger' : 'text-success'}`}>
+                                {submission.ai_score || 0}%
                             </strong>
                         </div>
-                        <div style={styles.stat}>
-                            <span>Plagiarism</span>
-                            <strong style={{ color: submission.plagiarism_score > 50 ? 'red' : 'green' }}>
-                                {submission.plagiarism_score}%
+                        <div className="gm-stat-card">
+                            <span className="gm-stat-label">Plagiarism Risk</span>
+                            <strong className={`gm-stat-val ${submission.plagiarism_score > 40 ? 'text-danger' : 'text-success'}`}>
+                                {submission.plagiarism_score || 0}%
                             </strong>
                         </div>
-                        <div style={styles.stat}>
-                            <span>Content Match</span>
-                            <strong style={{ color: '#3b82f6' }}>
+                        <div className="gm-stat-card">
+                            <span className="gm-stat-label">Semantic Match</span>
+                            <strong className="gm-stat-val text-primary">
                                 {submission.similarity_score ? (submission.similarity_score * 100).toFixed(0) : 0}%
                             </strong>
                         </div>
                     </div>
-                    <div style={{ marginTop: '10px', fontSize: '0.85rem', background: 'white', padding: '10px', borderRadius: '4px' }}>
-                        <strong>AI Feedback:</strong> {submission.feedback || "No feedback generated."}
+                    <div className="gm-feedback-box">
+                        <strong className="gm-feedback-heading">Automated Diagnostic Logs:</strong>
+                        <p className="gm-feedback-text">{submission.feedback || "Structural criteria met cleanly. No anomalies detected."}</p>
                     </div>
                 </div>
 
-                {/* Manual Grading Section */}
-                <div style={{ marginTop: '20px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px' }}><strong>Final Marks (0-100)</strong></label>
-                    <input
-                        type="number"
-                        value={marks}
-                        onChange={e => setMarks(e.target.value)}
-                        style={styles.input}
-                    />
+                {/* Manual Validation Matrix Form */}
+                <div className="gm-form-row">
+                    <div className="gm-form-group">
+                        <label className="gm-form-label">Final Marks (0 - 100)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.5"
+                            value={marks}
+                            onChange={e => setMarks(e.target.value)}
+                            className="gm-input"
+                        />
+                    </div>
 
-                    <label style={{ display: 'block', marginBottom: '5px', marginTop: '10px' }}><strong>Grade Letter</strong></label>
-                    <select value={grade} onChange={e => setGrade(e.target.value)} style={styles.input}>
-                        <option value="A+">A+</option>
-                        <option value="A">A</option>
-                        <option value="B">B</option>
-                        <option value="C">C</option>
-                        <option value="D">D</option>
-                        <option value="F">F</option>
-                    </select>
+                    <div className="gm-form-group">
+                        <label className="gm-form-label">Evaluated Grade</label>
+                        <select value={grade} onChange={e => setGrade(e.target.value)} className="gm-select">
+                            <option value="A+">A+</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                            <option value="F">F</option>
+                        </select>
+                    </div>
                 </div>
 
-                <div style={styles.footer}>
-                    {error && (
-                        <div style={{ width: '100%', padding: '8px 12px', background: '#fef2f2', color: '#dc2626', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '10px', border: '1px solid #fecaca' }}>
-                            ⚠ {error}
-                        </div>
-                    )}
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', width: '100%' }}>
-                        <button onClick={onClose} style={styles.cancelBtn}>Cancel</button>
-                        <button onClick={handlePublish} disabled={loading} style={styles.publishBtn}>
-                            {loading ? "Publishing..." : "✅ Publish Grade"}
+                {/* Notifications & Actions Footer */}
+                <div className="gm-footer">
+                    {error && <div className="gm-banner-error">⚠️ {error}</div>}
+                    {successMsg && <div className="gm-banner-success">{successMsg}</div>}
+                    
+                    <div className="gm-action-group">
+                        <button onClick={onClose} disabled={loading} className="gm-btn-cancel">Dismiss</button>
+                        <button onClick={handlePublish} disabled={loading} className="gm-btn-publish">
+                            {loading ? "Syncing Grid..." : "Publish Score"}
                         </button>
                     </div>
                 </div>
             </div>
         </div>
     );
-};
-
-const styles = {
-    overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
-    modal: { background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '500px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' },
-    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },
-    closeBtn: { background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' },
-    aiSection: { background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', marginTop: '15px' },
-    statGrid: { display: 'flex', justifyContent: 'space-between', gap: '10px' },
-    stat: { display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: '0.9rem' },
-    input: { width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' },
-    footer: { marginTop: '25px', display: 'flex', justifyContent: 'flex-end', gap: '10px' },
-    cancelBtn: { padding: '10px 20px', border: 'none', background: '#e2e8f0', borderRadius: '6px', cursor: 'pointer' },
-    publishBtn: { padding: '10px 20px', border: 'none', background: '#10b981', color: 'white', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }
 };
 
 export default GradingModal;

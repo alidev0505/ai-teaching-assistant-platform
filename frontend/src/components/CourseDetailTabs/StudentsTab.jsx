@@ -1,55 +1,50 @@
-import React from 'react';
+import React, { useState } from 'react';
 
-const StudentsTab = ({ students, id, removeStudent, fetchStudents }) => {
+const StudentsTab = ({ students = [], id, removeStudent, fetchStudents }) => {
+  const [error, setError] = useState('');
+
   const handleRemove = async (studentId, studentName) => {
-    if (window.confirm(`Are you sure you want to remove ${studentName} from this course?`)) {
+    setError('');
+    // Note: window.confirm is perfectly fine for basic confirmation, or it can be handled by an alert modal later.
+    if (window.confirm(`Are you sure you want to remove ${studentName || 'this student'} from this course?`)) {
       try {
         await removeStudent(id, studentId);
         fetchStudents();
       } catch (err) {
-        alert("Failed to remove student.");
+        console.error(err);
+        setError("Privilege Error: Failed to remove the requested student record safely.");
       }
     }
   };
 
   return (
-    <div className="card" style={{ padding: '0', overflow: 'hidden', background: 'white', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+    <div className="st-table-wrapper">
+      {error && <div className="st-banner-error">⚠️ {error}</div>}
+      
+      <table className="st-table">
+        <thead className="st-thead">
           <tr>
-            <th style={{ padding: '15px', textAlign: 'left', color: '#64748b', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>Student Name</th>
-            <th style={{ padding: '15px', textAlign: 'left', color: '#64748b', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>Email Address</th>
-            <th style={{ padding: '15px', textAlign: 'right', color: '#64748b', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>Action</th>
+            <th className="st-th st-text-left">Student Name</th>
+            <th className="st-th st-text-left">Email Address</th>
+            <th className="st-th st-text-right">Action</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="st-tbody">
           {students.length === 0 ? (
             <tr>
-              <td colSpan="3" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                No students are currently enrolled in this course.
+              <td colSpan="3" className="st-td st-empty-state">
+                No students are currently enrolled in this course roster.
               </td>
             </tr>
           ) : (
             students.map(s => (
-              <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}>
-                <td style={{ padding: '15px', fontWeight: '600', color: '#1e293b' }}>{s.username}</td>
-                <td style={{ padding: '15px', color: '#64748b' }}>{s.email}</td>
-                <td style={{ padding: '15px', textAlign: 'right' }}>
+              <tr key={s.id} className="st-tr">
+                <td className="st-td gt-item-title">{s.username || 'Unverified Student'}</td>
+                <td className="st-td st-text-muted">{s.email || 'No email attached'}</td>
+                <td className="st-td st-text-right">
                   <button 
                     onClick={() => handleRemove(s.id, s.username)} 
-                    style={{ 
-                      padding: '6px 12px', 
-                      fontSize: '0.8rem', 
-                      background: '#fee2e2', 
-                      color: '#dc2626', 
-                      border: '1px solid #fecaca', 
-                      borderRadius: '6px', 
-                      cursor: 'pointer',
-                      fontWeight: '600',
-                      transition: 'all 0.2s'
-                    }}
-                    onMouseOver={(e) => e.target.style.background = '#fecaca'}
-                    onMouseOut={(e) => e.target.style.background = '#fee2e2'}
+                    className="st-btn-remove"
                   >
                     Remove
                   </button>

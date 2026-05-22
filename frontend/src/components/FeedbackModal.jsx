@@ -5,62 +5,92 @@ const FeedbackModal = ({ courseId, onClose }) => {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setSuccessMsg('');
     setLoading(true);
+
     try {
-      await submitFeedback(courseId, { rating, comment });
-      alert("Thank you for your feedback!");
-      onClose(); // Close modal on success
+      await submitFeedback(courseId, { rating, comment: comment.trim() });
+      setSuccessMsg('✨ Thank you for your valuable feedback!');
+      
+      // Allow the success message to be viewed before closing the modal context
+      setTimeout(() => {
+        onClose();
+      }, 1500);
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to submit feedback");
+      const msg = err.response?.data?.error || "Failed to submit feedback entries safely.";
+      setError(msg);
     } finally {
       setLoading(false);
     }
   };
 
+  const getRatingLabel = () => {
+    if (rating === 5) return "Excellent! 🤩";
+    if (rating === 4) return "Good 🙂";
+    if (rating === 3) return "Average 😐";
+    if (rating === 2) return "Poor 😞";
+    return "Terrible 😡";
+  };
+
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-    }}>
-      <div className="card" style={{ width: '100%', maxWidth: '400px', padding: '30px', background: 'white', borderRadius: '12px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ marginTop: 0, textAlign: 'center', color: '#1e293b' }}>Rate this Course</h2>
+    <div className="fm-overlay">
+      <div className="fm-modal-card">
+        <h2 className="fm-modal-title">Rate this Course</h2>
         
         <form onSubmit={handleSubmit}>
-          {/* STAR RATING */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px', fontSize: '2.5rem', cursor: 'pointer' }}>
+          {/* STAR RATING COMPONENT */}
+          <div className="fm-stars-container">
             {[1, 2, 3, 4, 5].map((star) => (
               <span 
                 key={star} 
                 onClick={() => setRating(star)} 
-                style={{ color: star <= rating ? '#fbbf24' : '#cbd5e1', transition: 'color 0.2s' }}
+                className={`fm-star-icon ${star <= rating ? 'active' : 'inactive'}`}
               >
                 ★
               </span>
             ))}
           </div>
           
-          <p style={{ textAlign: 'center', margin: '-15px 0 20px', color: '#64748b', fontSize: '0.9rem' }}>
-            {rating === 5 ? "Excellent! 🤩" : rating === 4 ? "Good 🙂" : rating === 3 ? "Average 😐" : rating === 2 ? "Poor 😞" : "Terrible 😡"}
+          <p className="fm-rating-badge">
+            {getRatingLabel()}
           </p>
 
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#334155' }}>Comments (Optional)</label>
+          <div className="fm-form-group">
+            <label className="fm-form-label">Comments (Optional)</label>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="What did you like or dislike?"
+              placeholder="What did you like or dislike about this course context?"
               rows="4"
-              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '1rem' }}
+              maxLength="500"
+              className="fm-textarea"
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button type="button" onClick={onClose} className="btn-secondary" style={{ flex: 1, justifyContent: 'center', padding: '10px' }}>Cancel</button>
-            <button type="submit" disabled={loading} className="btn-primary" style={{ flex: 1, justifyContent: 'center', padding: '10px' }}>
+          {/* DYNAMIC FEEDBACK NOTIFICATION BANNERS */}
+          {error && <div className="fm-banner-error">⚠️ {error}</div>}
+          {successMsg && <div className="fm-banner-success">{successMsg}</div>}
+
+          <div className="fm-action-row">
+            <button 
+              type="button" 
+              onClick={onClose} 
+              disabled={loading} 
+              className="fm-btn-secondary"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              disabled={loading} 
+              className="fm-btn-primary"
+            >
               {loading ? 'Submitting...' : 'Submit Review'}
             </button>
           </div>
