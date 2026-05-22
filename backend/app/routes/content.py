@@ -273,17 +273,24 @@ def get_course(course_id):
 @content_bp.route('/attendance/mark', methods=['POST'])
 @jwt_required()
 def mark_attendance():
-    identity = get_jwt_identity()
-    user_id = identity['id'] if isinstance(identity, dict) else int(identity)
+    try:
+        identity = get_jwt_identity()
+        user_id = identity['id'] if isinstance(identity, dict) else int(identity)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid identity context'}), 401
+        
     user = User.query.get(user_id)
+    if not user or user.role != 'teacher': 
+        return jsonify({'error': 'Unauthorized. Teacher privileges required.'}), 403
     
-    if user.role != 'teacher': return jsonify({'error': 'Unauthorized'}), 403
-
     data = request.get_json()
     course_id = data.get('course_id')
     course = Course.query.get(course_id)
     if not course:
         return jsonify({'error': 'Course not found'}), 404
+    
+    if course.teacher_id != user_id:
+        return jsonify({'error': 'Access denied. You are not the assigned instructor for this course.'}), 403
         
     if course.is_attendance_locked:
         return jsonify({'error': 'Attendance is locked. You cannot edit it.'}), 403
@@ -322,15 +329,31 @@ def mark_attendance():
         return jsonify({'error': 'Failed to save'}), 500
 
 # --- GET ATTENDANCE SHEET (Teacher View) ---
+# --- GET ATTENDANCE SHEET (Teacher View) ---
 @content_bp.route('/attendance/<int:course_id>', methods=['GET'])
 @jwt_required()
 def get_attendance_sheet(course_id):
+    try:
+        identity = get_jwt_identity()
+        user_id = identity['id'] if isinstance(identity, dict) else int(identity)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid identity context'}), 401
+
+    course = Course.query.get(course_id)
+    if not course:
+        return jsonify({'error': 'Course context not found'}), 404
+
+    # 🔥 SECURITY FIX: Direct access boundary isolation.
+    # Assures only the course's teacher can extract or view the total class sheet.
+    if course.teacher_id != user_id:
+        return jsonify({'error': 'Access denied. Privileged informational scope.'}), 403
+
     records = Attendance.query.filter_by(course_id=course_id).all()
     output = []
     for r in records:
         output.append({
             'student_id': r.student_id,
-            'date': r.date.isoformat(),
+            'date': r.date.isoformat() if r.date else None,
             'status': r.status,
             'session': r.session_number
         })
@@ -442,28 +465,35 @@ from app.models.models import db, User, Material, GeneratedContent, Assignment, 
 @content_bp.route('/assignment/<int:assignment_id>', methods=['DELETE'])
 @jwt_required()
 def delete_assignment(assignment_id):
-    identity = get_jwt_identity()
-    user_id = identity['id'] if isinstance(identity, dict) else int(identity)
-    user = User.query.get(user_id)
-    
-    if user.role != 'teacher':
-        return jsonify({'error': 'Unauthorized'}), 403
+    try:
+        identity = get_jwt_identity()
+        user_id = identity['id'] if isinstance(identity, dict) else int(identity)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid identity token'}), 401
 
     assignment = Assignment.query.get(assignment_id)
     if not assignment:
         return jsonify({'error': 'Assignment not found'}), 404
+        
+    course = Course.query.get(assignment.course_id)
+    if not course:
+        return jsonify({'error': 'Associated course context missing'}), 404
+        
+    # 🔥 SECURITY FIX: Enforce section ownership verification before data deletion
+    if course.teacher_id != user_id:
+        return jsonify({'error': 'Access denied. You cannot delete tasks assigned by other instructors.'}), 403
     
     try:
-        course = Course.query.get(assignment.course_id)
-        if course:
-            target_message = f"New Assignment posted in {course.name}: {assignment.title}"
-            Notification.query.filter_by(message=target_message).delete()
+        target_message = f"New Assignment posted in {course.name}: {assignment.title}"
+        Notification.query.filter_by(message=target_message).delete()
     except Exception as e:
         print(f"Error cleaning up notifications: {e}")
 
     if assignment.file_path and os.path.exists(assignment.file_path):
-        try: os.remove(assignment.file_path)
-        except: pass
+        try: 
+            os.remove(assignment.file_path)
+        except Exception: 
+            pass
 
     db.session.delete(assignment)
     db.session.commit()
@@ -682,29 +712,47 @@ def download_content(content_id):
 @jwt_required()
 def download_file():
     file_path = request.args.get('path')
-    if not file_path: return jsonify({'error': 'No path provided'}), 400
+    if not file_path: 
+        return jsonify({'error': 'No path provided'}), 400
+        
+    # 🔥 SECURITY FIX: Mitigates Path Traversal (Arbitrary Local File Read Flaws)
+    # Validates that the requested target resides strictly within the safe upload directory boundary
+    base_upload_dir = os.path.abspath(current_app.config['UPLOAD_FOLDER'])
     abs_path = os.path.abspath(file_path)
-    if not os.path.exists(abs_path): return jsonify({'error': 'File not found'}), 404
+    
+    if not abs_path.startswith(base_upload_dir):
+        return jsonify({'error': 'Access denied. Security parameter tracking restriction violation.'}), 403
+        
+    if not os.path.exists(abs_path) or os.path.isdir(abs_path): 
+        return jsonify({'error': 'File not found'}), 404
+        
     return send_file(abs_path, as_attachment=True)
 
 # This is the single correct route for submissions to avoid conflicts
 @content_bp.route('/submissions/<int:assignment_id>', methods=['GET'])
 @jwt_required()
 def get_assignment_submissions(assignment_id):
-    identity = get_jwt_identity()
-    user_id = identity['id'] if isinstance(identity, dict) else int(identity)
-    user = User.query.get(user_id)
+    try:
+        identity = get_jwt_identity()
+        user_id = identity['id'] if isinstance(identity, dict) else int(identity)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid identity token'}), 401
+
+    assignment = Assignment.query.get_or_404(assignment_id)
+    course = Course.query.get(assignment.course_id)
     
-    if user.role != 'teacher': return jsonify({'error': 'Unauthorized'}), 403
+    # 🔥 SECURITY FIX: Direct access boundary enforcement on student artifacts
+    if not course or course.teacher_id != user_id:
+        return jsonify({'error': 'Access denied. You are not the assigned instructor for this course section.'}), 403
 
     submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
     
     return jsonify({
         'submissions': [{
             'id': s.id,
-            'student_name': s.student.username,
-            'email': s.student.email,
-            'submitted_at': s.submitted_at.strftime('%Y-%m-%d %H:%M'),
+            'student_name': s.student.username if s.student else 'Unknown',
+            'email': s.student.email if s.student else 'N/A',
+            'submitted_at': s.submitted_at.strftime('%Y-%m-%d %H:%M') if s.submitted_at else 'N/A',
             'file_path': s.file_path,
             'grade': s.grade,
             'marks': s.obtained_marks,
@@ -714,18 +762,20 @@ def get_assignment_submissions(assignment_id):
             'is_published': s.is_published
         } for s in submissions]
     }), 200
-
-# Place this at the end of backend/app/routes/content.py
-
+    
 # --- TEACHER ANALYTICS (Assignments + Attendance) ---
 @content_bp.route('/analytics/<int:course_id>', methods=['GET'])
 @jwt_required()
 def get_course_analytics(course_id):
     try:
-        # 1. Verify Teacher
+        # 1. Verify Teacher Identity Context securely
         user_id = int(get_jwt_identity())
         course = Course.query.get(course_id)
-        if not course: return jsonify({'error': 'Course not found'}), 404
+        if not course: 
+            return jsonify({'error': 'Course not found'}), 404
+        
+        if course.teacher_id != user_id:
+            return jsonify({'error': 'Access denied. You are not the authorized instructor for this section.'}), 403
         
         # 2. Basic Counts
         total_students = len(course.enrollments)
@@ -939,12 +989,24 @@ def get_course_sessions(course_id):
 @jwt_required()
 def delete_live_session(session_id):
     try:
+        try:
+            identity = get_jwt_identity()
+            user_id = identity['id'] if isinstance(identity, dict) else int(identity)
+        except (ValueError, TypeError):
+            return jsonify({'error': 'Invalid identity context'}), 401
+
         session = LiveSession.query.get_or_404(session_id)
+        course = Course.query.get(session.course_id)
+        
+        if not course or course.teacher_id != user_id:
+            return jsonify({'error': 'Access denied. You do not manage this session context.'}), 403
+
         db.session.delete(session)
         db.session.commit()
-        return jsonify({'message': 'Session deleted'}), 200
+        return jsonify({'message': 'Session deleted successfully'}), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        db.session.rollback()
+        return jsonify({'error': 'Failed to drop live session record parameters.'}), 500
 
 # --- STUDENT ATTENDANCE STATS ---
 @content_bp.route('/attendance/student/me', methods=['GET'])
@@ -1318,8 +1380,16 @@ def get_my_course_grades(course_id):
 @content_bp.route('/attendance/report/<int:course_id>', methods=['GET'])
 @jwt_required()
 def get_attendance_report(course_id):
-    # 1. Verify Course
+    try:
+        user_id = int(get_jwt_identity())
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid token signature structure'}), 401
+    
     course = Course.query.get_or_404(course_id)
+    
+    if course.teacher_id != user_id:
+        return jsonify({'error': 'Access denied. Privileged class analytics view.'}), 403
+    
     records = Attendance.query.filter_by(course_id=course_id).all()
     
     if not records:
@@ -1551,38 +1621,55 @@ def submit_and_grade():
 @content_bp.route('/submission/publish', methods=['POST'])
 @jwt_required()
 def publish_grade():
-    identity = get_jwt_identity()
-    user_id = identity['id'] if isinstance(identity, dict) else int(identity)
+    try:
+        identity = get_jwt_identity()
+        user_id = identity['id'] if isinstance(identity, dict) else int(identity)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid identity context'}), 401
+
     user = db.session.get(User, user_id)
-    
-    if user.role != 'teacher': 
+    if not user or user.role != 'teacher': 
         return jsonify({'error': 'Unauthorized'}), 403
 
-    data = request.get_json()
+    data = request.get_json() or {}
     submission_id = data.get('submission_id')
-    new_marks = data.get('marks') # Teacher can edit marks
-    new_grade = data.get('grade') # Teacher can edit grade
+    new_marks = data.get('marks') 
+    new_grade = data.get('grade') 
 
     submission = db.session.get(Submission, submission_id)
     if not submission: 
         return jsonify({'error': 'Submission not found'}), 404
 
-    # Update if teacher changed anything
+    # Fetch parent course assignment context to verify ownership maps
+    assignment = db.session.get(Assignment, submission.assignment_id)
+    course = Course.query.get(assignment.course_id) if assignment else None
+
+    if not course or course.teacher_id != user_id:
+        return jsonify({'error': 'Access denied. You are not the assigned instructor for this student entry.'}), 403
+
     if new_marks is not None: submission.obtained_marks = new_marks
     if new_grade is not None: submission.grade = new_grade
     
-    submission.is_published = True # ✅ NOW VISIBLE TO STUDENT
+    submission.is_published = True 
     db.session.commit()
 
-    return jsonify({'message': 'Grade updated and published.'}), 200
+    return jsonify({'message': 'Grade updated and published successfully.'}), 200
 
 @content_bp.route('/course/<int:course_id>/download-full-file', methods=['GET'])
 @jwt_required()
 def download_course_file(course_id):
-    # Use a local import here to avoid "Circular Import" errors
-    from app.models.models import Course 
+    try:
+        identity = get_jwt_identity()
+        user_id = identity['id'] if isinstance(identity, dict) else int(identity)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid identity token'}), 401
     
+    from app.models.models import Course 
     course = Course.query.get_or_404(course_id)
+    
+    if course.teacher_id != user_id:
+        return jsonify({'error': 'Access denied. You do not hold export clearances for this course section.'}), 403
+        
     zip_data = CourseFileService.generate_course_zip(course)
     zip_data.seek(0)
     

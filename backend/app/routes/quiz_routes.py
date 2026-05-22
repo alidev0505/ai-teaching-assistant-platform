@@ -5,8 +5,6 @@ from datetime import datetime
 
 quiz_bp = Blueprint('quiz', __name__)
 
-# 1. CREATE QUIZ (Teacher)
-# --- UPDATED CREATE QUIZ ROUTE ---
 @quiz_bp.route('/create', methods=['POST'])
 @jwt_required()
 def create_quiz():
@@ -21,8 +19,11 @@ def create_quiz():
         deadline_str = data.get('deadline')
         deadline = datetime.fromisoformat(deadline_str) if deadline_str else None
 
-        # ✅ CAST TO INT: Ensures the database receives the correct type
         c_id = int(data['course_id'])
+        
+        target_course = Course.query.get(c_id)
+        if not target_course or target_course.teacher_id != user_id:
+            return jsonify({'error': 'Unauthorized course assignment context target.'}), 403
 
         new_quiz = Quiz(
             course_id=c_id,
@@ -47,12 +48,12 @@ def create_quiz():
             )
             db.session.add(new_q)
         
-        db.session.commit() # ✅ FINAL DISK WRITE
+        db.session.commit() 
         print(f"SUCCESS: Quiz '{new_quiz.title}' saved to Course {c_id}")
         return jsonify({'message': 'Quiz created successfully!', 'quiz_id': new_quiz.id}), 201
 
     except Exception as e:
-        db.session.rollback() # ✅ UNDO on failure
+        db.session.rollback() 
         print(f"DATABASE ERROR during quiz creation: {e}")
         return jsonify({'error': 'Database failure. Check server logs.'}), 500
     
@@ -63,7 +64,6 @@ def get_quiz(quiz_id):
     quiz = Quiz.query.get(quiz_id)
     if not quiz: return jsonify({'error': 'Not found'}), 404
 
-    # ✅ FIX: Move the check here. Students cannot access unpublished quizzes.
     if not quiz.is_published:
         return jsonify({'error': 'This quiz has not been assigned yet.'}), 403
 
@@ -91,7 +91,6 @@ def get_quiz(quiz_id):
         }
     }), 200
 
-# ✅ NEW: Fetch all quizzes for a specific course (Required by CourseDetail.jsx)
 @quiz_bp.route('/course/<int:course_id>', methods=['GET'])
 @jwt_required()
 def get_course_quizzes(course_id):
@@ -113,7 +112,6 @@ def get_course_quizzes(course_id):
         } for q in quizzes]
     }), 200
 
-# ✅ NEW: Fetch published quizzes for student dashboard (Required by StudentDashboard.jsx)
 @quiz_bp.route('/student/available-quizzes/<int:course_id>', methods=['GET'])
 @jwt_required()
 def get_student_available_quizzes(course_id):
@@ -139,6 +137,9 @@ def assign_existing_quiz(quiz_id):
     if user.role != 'teacher': return jsonify({'error': 'Unauthorized'}), 403
 
     quiz = Quiz.query.get_or_404(quiz_id)
+    target_course = Course.query.get(quiz.course_id)
+    if not target_course or target_course.teacher_id != user_id:
+        return jsonify({'error': 'Unauthorized course modifications parameters.'}), 403
     data = request.get_json()
     
     quiz.is_published = True
@@ -152,13 +153,31 @@ def assign_existing_quiz(quiz_id):
 @quiz_bp.route('/submit', methods=['POST'])
 @jwt_required()
 def submit_quiz():
-    user_id = int(get_jwt_identity())
+    try:
+        user_id = int(get_jwt_identity())
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid token structure'}), 401
+
     data = request.get_json()
-    quiz_id = data['quiz_id']
-    answers = data['answers'] 
+    quiz_id = data.get('quiz_id')
+    answers = data.get('answers', {}) 
 
     quiz = Quiz.query.get(quiz_id)
-    if not quiz: return jsonify({'error': 'Quiz not found'}), 404
+    if not quiz: 
+        return jsonify({'error': 'Quiz not found'}), 404
+
+    if quiz.deadline and datetime.utcnow() > quiz.deadline:
+        return jsonify({'error': 'Submission blocked. The quiz deadline has passed.'}), 400
+
+    from app.models.models import Enrollment
+    is_enrolled = Enrollment.query.filter_by(student_id=user_id, course_id=quiz.course_id).first()
+    if not is_enrolled:
+        return jsonify({'error': 'Unauthorized. You are not enrolled in the course associated with this quiz.'}), 403
+
+    # Prevent double submissions
+    existing = QuizSubmission.query.filter_by(quiz_id=quiz_id, student_id=user_id).first()
+    if existing:
+        return jsonify({'error': 'You have already attempted this quiz.'}), 400
 
     score = 0
     total = len(quiz.questions)
@@ -170,19 +189,30 @@ def submit_quiz():
     submission = QuizSubmission(quiz_id=quiz_id, student_id=user_id, score=final_score, total_questions=total)
     db.session.add(submission)
     db.session.commit()
-    return jsonify({'message': 'Submitted', 'score': final_score, 'correct': score, 'total': total}), 200
+    
+    return jsonify({'message': 'Submitted successfully', 'score': final_score, 'correct': score, 'total': total}), 200
 
 # 4. GET QUIZ RESULTS
 @quiz_bp.route('/<int:quiz_id>/results', methods=['GET'])
 @jwt_required()
 def get_quiz_results(quiz_id):
+    try:
+        user_id = int(get_jwt_identity())
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid token structure'}), 401
+
     quiz = Quiz.query.get_or_404(quiz_id)
+    course = Course.query.get(quiz.course_id)
+    
+    if not course or course.teacher_id != user_id:
+        return jsonify({'error': 'Access denied. You are not the instructor for this course.'}), 403
+
     submissions = QuizSubmission.query.filter_by(quiz_id=quiz_id).all()
     results = []
     for sub in submissions:
         student = User.query.get(sub.student_id)
         results.append({
-            'student_name': student.username,
+            'student_name': student.username if student else 'Unknown',
             'score': sub.score,
             'total': sub.total_questions,
             'date': sub.submitted_at.strftime('%Y-%m-%d %H:%M')
@@ -193,7 +223,17 @@ def get_quiz_results(quiz_id):
 @quiz_bp.route('/<int:quiz_id>/stats', methods=['GET'])
 @jwt_required()
 def get_quiz_stats(quiz_id):
+    try:
+        user_id = int(get_jwt_identity())
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid token structure'}), 401
+
     quiz = Quiz.query.get_or_404(quiz_id)
+    course = Course.query.get(quiz.course_id)
+    
+    if not course or course.teacher_id != user_id:
+        return jsonify({'error': 'Access denied. You are not the instructor for this course.'}), 403
+
     submissions = QuizSubmission.query.filter_by(quiz_id=quiz_id).all()
     
     if not submissions:
@@ -206,10 +246,11 @@ def get_quiz_stats(quiz_id):
     student_data = []
     for sub in submissions:
         student = User.query.get(sub.student_id)
-        student_data.append({
-            'name': student.username, 'email': student.email, 'score': sub.score,
-            'submitted_at': sub.submitted_at.strftime('%Y-%m-%d %H:%M')
-        })
+        if student:
+            student_data.append({
+                'name': student.username, 'email': student.email, 'score': sub.score,
+                'submitted_at': sub.submitted_at.strftime('%Y-%m-%d %H:%M')
+            })
     student_data.sort(key=lambda x: x['score'], reverse=True)
 
     return jsonify({

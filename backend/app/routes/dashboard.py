@@ -30,7 +30,7 @@ def get_courses():
                 'teacher_name': user.username,
                 'student_count': len(course.enrollments),
                 
-                # ✅ ADDED NEW METADATA FIELDS
+                # ADDED NEW METADATA FIELDS
                 'course_catalog_code': course.course_catalog_code, # e.g. "CSC 101"
                 'program': course.program,        # e.g. "BSCS"
                 'semester_code': course.semester_code, # e.g. "I-A"
@@ -49,7 +49,7 @@ def get_courses():
                     'teacher_name': course.teacher.username if course.teacher else 'Unknown',
                     'student_count': len(course.enrollments),
                     
-                    # ✅ ADDED NEW METADATA FIELDS FOR STUDENTS TOO
+                    # ADDED NEW METADATA FIELDS FOR STUDENTS TOO
                     'course_catalog_code': course.course_catalog_code,
                     'program': course.program,
                     'semester_code': course.semester_code,
@@ -112,7 +112,6 @@ def teacher_dashboard():
             'total_assignments': course_assignments,
             'pending_submissions': pending_submissions,
 
-            # ✅ ADDED NEW METADATA FIELDS HERE TOO
             'course_catalog_code': course.course_catalog_code,
             'program': course.program,
             'semester_code': course.semester_code,
@@ -152,7 +151,6 @@ def student_dashboard():
             'total_materials': len(course.materials),
             'total_assignments': len(course.assignments),
             
-            # ✅ ADDED METADATA FOR STUDENT VIEW
             'course_catalog_code': course.course_catalog_code,
             'program': course.program,
             'semester_code': course.semester_code,
@@ -181,25 +179,24 @@ def student_dashboard():
     
     return jsonify(dashboard_data), 200
 
-# --- ✅ FIX: ENROLL IN COURSE (Using Class Code) ---
 @dashboard_bp.route('/enroll/<code>', methods=['POST'])
 @jwt_required()
 def enroll_in_course(code):
     try:
         user_id = int(get_jwt_identity())
+        user = User.query.get(user_id)
+
+        if not user or user.role != 'student':
+            return jsonify({'error': 'Administrative or instructional roles cannot execute student enrollment routines.'}), 403
         
-        # 1. Find Course by Class Code (NOT ID)
         course = Course.query.filter_by(class_code=str(code)).first()
-        
         if not course:
             return jsonify({'error': 'Invalid Class Code'}), 404
             
-        # 2. Check if already enrolled
         existing = Enrollment.query.filter_by(student_id=user_id, course_id=course.id).first()
         if existing:
             return jsonify({'message': 'Already enrolled'}), 200
             
-        # 3. Create Enrollment
         new_enrollment = Enrollment(student_id=user_id, course_id=course.id)
         db.session.add(new_enrollment)
         db.session.commit()
@@ -214,8 +211,8 @@ def enroll_in_course(code):
         }), 201
         
     except Exception as e:
-        print(f"Enrollment Error: {e}")
-        return jsonify({'error': 'Server Error'}), 500
+        db.session.rollback()
+        return jsonify({'error': 'Server Error during secure enrollment compilation'}), 500
 
 # --- OPTIONAL: ENROLL BY ID (If accessed directly) ---
 @dashboard_bp.route('/enroll-id/<int:course_id>', methods=['POST'])
@@ -271,12 +268,15 @@ def export_students(course_id):
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     
-    if user.role != 'teacher':
-        return jsonify({'error': 'Unauthorized'}), 403
+    if not user or user.role != 'teacher':
+        return jsonify({'error': 'Unauthorized access tier.'}), 403
 
     course = Course.query.get(course_id)
     if not course:
-        return jsonify({'error': 'Course not found'}), 404
+        return jsonify({'error': 'Course parameters not found.'}), 404
+
+    if course.teacher_id != user.id:
+        return jsonify({'error': 'Access denied. You are not the assigned instructor for this section.'}), 403
 
     # Create Excel Workbook
     wb = Workbook()
@@ -289,14 +289,10 @@ def export_students(course_id):
     # Data Rows
     for enrollment in course.enrollments:
         student = enrollment.student
-        
-        # Calculate submissions for this course
         submitted_titles = []
         submission_count = 0
         
-        # Check all assignments in this course
         for assignment in course.assignments:
-            # Find if student submitted this assignment
             sub = Submission.query.filter_by(
                 assignment_id=assignment.id, 
                 student_id=student.id
@@ -311,10 +307,9 @@ def export_students(course_id):
             student.username,
             student.email,
             submission_count,
-            ", ".join(submitted_titles) # Comma separated list of completed tasks
+            ", ".join(submitted_titles)
         ])
 
-    # Save to memory buffer
     excel_file = io.BytesIO()
     wb.save(excel_file)
     excel_file.seek(0)

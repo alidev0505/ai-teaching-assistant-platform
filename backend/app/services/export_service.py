@@ -39,13 +39,13 @@ class ExportService:
     # ---------- 2. TEXT CLEANER (REGEX POWERED) ----------
     @staticmethod
     def clean_text(text, include_answers=True):
-        """Cleans AI output and optionally removes answers using Regex."""
+        """Cleans AI output and optionally removes answers using secure Regular Expressions."""
         if not text: return ""
 
-        # 1. Global Removal of Bold/Italic/Code markers
-        # Removing **, __, ##, and the specific instruction parentheticals
+        text = text[:50000]
+
         text = re.sub(r'\*\*|__', '', text) 
-        text = re.sub(r'\(.*don.*t use topic.*\)', '', text, flags=re.IGNORECASE)
+        text = re.sub(r'\(#[^)]*don[^)]*t[^)]*use[^)]*topic[^)]*\)', '', text, flags=re.IGNORECASE)
 
         lines = text.split('\n')
         filtered_lines = []
@@ -54,14 +54,12 @@ class ExportService:
             l = line.strip()
             if not l: continue 
             
-            # 2. Aggressively strip leading symbols (Bullet points, Hash headers, Dashes)
-            # e.g., "# Question 1" becomes "Question 1"
-            # e.g., "* A)" becomes "A)"
+            # 2. Aggressively strip leading symbols safely
             l = re.sub(r'^[\#\*\-\s]+', '', l)
 
-            # 3. Skip Garbage Lines (Separators or Labels)
-            if re.match(r'^[-=_]{3,}$', l): continue # Lines like "---" or "==="
-            if re.match(r'^(Title|Subject|Topic|Task|Date):', l, re.IGNORECASE): continue
+            # 3. Skip Garbage Lines
+            if re.match(r'^[-=_]{3,}$', l): continue
+            if re.match(r'^(Title|Subject|Topic|Task|Date)\s*:', l, re.IGNORECASE): continue
 
             # 4. Skip Conversational Filler
             lower = l.lower()
@@ -69,15 +67,12 @@ class ExportService:
                lower.startswith("as your professor") or "i have crafted" in lower:
                 continue
 
-            # 5. HIDE ANSWERS (Robust Regex Check)
-            # Matches: "Correct Answer:", "Answer:", "Ans:", "Correct Option:"
             if not include_answers:
                 if re.search(r'^(correct\s*)?(answer|option|ans)\s*[:\-]', lower):
                     continue
             
             filtered_lines.append(l)
         
-        # Rejoin and return
         return "\n".join(filtered_lines)
 
     # ---------- 3. TEXT REPLACER ----------
@@ -124,17 +119,26 @@ class ExportService:
             stream.seek(0)
             return stream
 
+        def sanitize_meta(val):
+            return re.sub(r'[^\w\s\-\.\(\)\,\/:]', '', str(val or '')).strip()
+
+        clean_course = sanitize_meta(course_name)
+        clean_code = sanitize_meta(course_code)
+        clean_teacher = sanitize_meta(teacher_name)
+        clean_type = sanitize_meta(doc_type)
+        clean_program = sanitize_meta(program_name)
+
         doc = Document(template_path)
-        meta = ExportService.get_document_meta(doc_type)
+        meta = ExportService.get_document_meta(clean_type)
         
         replacements = {
-            "{{DEPARTMENT}}": ExportService.get_department_name(program_name),
-            "{{INSTRUCTOR}}": teacher_name,
-            "{{SESSION}}": f"{doc_type.capitalize()} (Fall-{datetime.now().year})",
-            "{{SUBJECT}}": course_name,
-            "{{CODE}}": course_code,
+            "{{DEPARTMENT}}": ExportService.get_department_name(clean_program),
+            "{{INSTRUCTOR}}": clean_teacher,
+            "{{SESSION}}": f"{clean_type.capitalize()} (Fall-{datetime.now().year})",
+            "{{SUBJECT}}": clean_course,
+            "{{CODE}}": clean_code,
             "{{MARKS}}": meta["marks"],
-            "{{PROGRAM}}": program_name,
+            "{{PROGRAM}}": clean_program,
             "{{SHIFT}}": "Morning",
             "{{SECTION}}": "A",
             "{{DATE}}": datetime.now().strftime("%d %B %Y"),

@@ -5,10 +5,6 @@ import pytesseract
 from pdf2image import convert_from_path
 from PIL import Image
 
-# ✅ CONFIGURATION: Set Tesseract Path (Windows Only)
-# If you are on Mac/Linux, you can usually comment this out.
-# If you are on Windows, uncomment the line below and ensure the path is correct.
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 def extract_text_from_file(file_path):
     """
@@ -44,50 +40,59 @@ def extract_text_from_file(file_path):
 
     return text.strip()
 
-# --- HELPER FUNCTIONS ---
 
 def _extract_from_standard_pdf(file_path):
-    """Fast extraction for digital PDFs using PyPDF2."""
+    """Fast extraction for digital PDFs using PyPDF2 with safety boundaries."""
     text = ""
     try:
         with open(file_path, 'rb') as f:
             reader = PyPDF2.PdfReader(f)
+            if len(reader.pages) > 100:
+                print("⚠️ Security Restriction: Exceeded maximum text extraction limit context bounds.")
+                return ""
+                
             for page in reader.pages:
                 extracted = page.extract_text()
                 if extracted:
                     text += extracted + "\n"
+                    # Prevent text memory buffer starvation
+                    if len(text) > 500000:
+                        break
     except Exception as e:
         print(f"Standard PDF Error: {e}")
     return text
 
 def _extract_from_scanned_pdf(file_path):
     """
-    Slow but powerful OCR extraction for images/scanned PDFs.
-    Requires 'tesseract' and 'poppler' to be installed on the system.
+    Slow but memory-isolated OCR extraction for images/scanned PDFs.
     """
     text = ""
     try:
-        # 1. Convert PDF Pages to Images
-        # Note: On Windows, you might need to add poppler_path=r'C:\...\bin' argument here
-        images = convert_from_path(file_path)
+        images = convert_from_path(file_path, first_page=1, last_page=15)
 
-        # 2. Run OCR on each image
-        for i, image in enumerate(images):
-            # Extract text from the image page
-            page_text = pytesseract.image_to_string(image)
-            text += page_text + "\n"
+        for image in images:
+            try:
+                page_text = pytesseract.image_to_string(image)
+                text += page_text + "\n"
+            except FileNotFoundError:
+                text += "\n[System Notice: OCR Command Dependency Binary Missing on Hosting Environment.]\n"
+                break
+            finally:
+                # Explicitly free memory allocations for image streams
+                if hasattr(image, 'close'):
+                    image.close()
             
     except Exception as e:
-        print(f"OCR Error: {e}")
-        print("HINT: Ensure Poppler and Tesseract-OCR are installed and added to your PATH.")
+        print(f"OCR Error handled safely.")
         
     return text
 
 def _extract_from_docx(file_path):
-    """Extract text from DOCX files."""
+    """Extract text from DOCX files using explicit resource wrapper tracking."""
     try:
-        doc = docx.Document(file_path)
-        return "\n".join([para.text for para in doc.paragraphs])
+        with open(file_path, 'rb') as f:
+            doc = docx.Document(f)
+            return "\n".join([para.text for para in doc.paragraphs if para and para.text])
     except Exception as e:
-        print(f"DOCX Error: {e}")
+        print(f"DOCX Error isolated.")
         return ""

@@ -4,6 +4,7 @@ from app.models.models import db, User, Course, Material, Announcement, CourseFe
 from datetime import datetime, timedelta
 from sqlalchemy import func
 from werkzeug.security import generate_password_hash
+from functools import wraps
 import random
 import csv
 import io
@@ -13,46 +14,67 @@ from io import StringIO
 
 admin_bp = Blueprint('admin', __name__)
 
-# --- Helper: Check if current user is Admin ---
-def check_admin():
-    try:
-        user_id = get_jwt_identity()
-        if not user_id: return False
-        user = User.query.get(user_id)
-        if not user or user.role != 'admin':
-            return False
-        return True
-    except:
-        return False
+# Enforce file limits: 5MB maximum upload size constraint
+MAX_FILE_SIZE = 5 * 1024 * 1024  
+ALLOWED_EXTENSIONS = {'csv'}
 
-# --- HELPER FUNCTIONS ---
+# ==========================================
+# 🔐 SYSTEM SECURITY DECORATORS (RBAC)
+# ==========================================
+
+def admin_required():
+    """
+    Custom decorator to enforce strict administrative access controls.
+    Eliminates developer risk of forgetting internal check blocks.
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            try:
+                user_id = get_jwt_identity()
+                if not user_id:
+                    return jsonify({'error': 'Authentication required'}), 401
+                
+                user = User.query.get(user_id)
+                if not user or user.role != 'admin':
+                    return jsonify({'error': 'Access denied. Administrative privileges required.'}), 403
+                
+                return f(*args, **kwargs)
+            except Exception:
+                return jsonify({'error': 'Security validation failure'}), 401
+        return decorated_function
+    return decorator
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# --- REFACTORED HELPER FUNCTIONS ---
 
 def generate_email(name):
-    # "Syed Adeel Hussain Shah" -> "syed.adeel.hussain.shah@university.edu"
+    # Sanitize and compile system matching uniform strings
     clean_name = name.lower().strip().replace(" ", ".")
     return f"{clean_name}@university.edu"
 
-def generate_temp_password():
-    # Random secure password
-    alphabet = string.ascii_letters + string.digits + "!@#"
-    return ''.join(secrets.choice(alphabet) for i in range(10))
+def generate_secure_temp_password():
+    """
+    Replaced old predictable names logic with high-entropy cryptographic strings.
+    """
+    alphabet = string.ascii_letters + string.digits + "!@#$%^*"
+    return ''.join(secrets.choice(alphabet) for _ in range(12))
 
 def parse_time(time_str):
-    # Converts "12:00 PM" to a datetime object for comparison
     try:
         return datetime.strptime(time_str.strip(), '%I:%M %p')
-    except:
+    except Exception:
         return None
 
 def check_time_conflict(teacher_id, day, new_in_str, new_out_str):
-    # Check if this teacher is already busy at this time
     existing_courses = Course.query.filter_by(teacher_id=teacher_id, day=day).all()
-    
     new_start = parse_time(new_in_str)
     new_end = parse_time(new_out_str)
     
     if not new_start or not new_end:
-        return None # Skip check if format is weird
+        return None
 
     for c in existing_courses:
         if c.time_in and c.time_out:
@@ -60,17 +82,17 @@ def check_time_conflict(teacher_id, day, new_in_str, new_out_str):
             exist_end = parse_time(c.time_out)
             
             if exist_start and exist_end:
-                # Conflict Logic: (StartA < EndB) and (EndA > StartB)
                 if new_start < exist_end and new_end > exist_start:
                     return f"Conflict with {c.class_code} ({c.time_in} - {c.time_out})"
     return None
 
-# --- MAIN UPLOAD ROUTE ---
-
-# --- UPDATE IN admin.py ---
+# ==========================================
+# 1. TIMETABLE BATCH PROCESSING
+# ==========================================
 
 @admin_bp.route('/upload-schedule', methods=['POST'])
 @jwt_required()
+@admin_required()  # Secured
 def upload_schedule_csv():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -79,7 +101,18 @@ def upload_schedule_csv():
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
 
+    # Security Fix: Enforce exact file extensions explicitly
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'Invalid file format. Only CSV files are accepted.'}), 400
+
     try:
+        # Security Fix: Measure incoming binary content length streams to block buffer overflows
+        file.stream.seek(0, io.SEEK_END)
+        size = file.stream.tell()
+        if size > MAX_FILE_SIZE:
+            return jsonify({'error': 'File payload exceeds maximum secure limit (5MB).'}), 413
+        file.stream.seek(0) # Reset stream tracker back to zero
+
         file_bytes = file.stream.read()
         try:
             decoded_file = file_bytes.decode('utf-8-sig')
@@ -89,9 +122,8 @@ def upload_schedule_csv():
         stream = io.StringIO(decoded_file, newline=None)
         csv_input = csv.DictReader(stream)
     except Exception as e:
-        return jsonify({'error': f'Failed to read CSV: {str(e)}'}), 400
+        return jsonify({'error': f'Failed to process file stream safely: {str(e)}'}), 400
 
-    # ✅ Tracking courses_created vs courses_updated explicitly
     report = {
         'created_teachers': [],
         'courses_created': 0,
@@ -102,7 +134,7 @@ def upload_schedule_csv():
 
     active_semester = Semester.query.filter_by(is_active=True).first() or Semester.query.first()
     if not active_semester:
-        return jsonify({'error': 'No active semester found. Please create a semester first.'}), 400
+        return jsonify({'error': 'No active semester context defined. Configuration required.'}), 400
     
     sem_id = active_semester.id
 
@@ -122,14 +154,12 @@ def upload_schedule_csv():
             time_out = clean_row.get('Time Out')
             semester_val = clean_row.get('Semester')
 
-            # TEACHER LOGIC
             email = generate_email(instructor_name)
             teacher = User.query.filter_by(email=email).first()
             
             if not teacher:
-                current_year = datetime.now().year
-                clean_name_pass = instructor_name.replace(" ", "").replace(".", "")
-                temp_pass = f"${clean_name_pass}@{current_year}"
+                # Updated to use high-entropy random generation method strings
+                temp_pass = generate_secure_temp_password()
 
                 teacher = User(
                     username=instructor_name,
@@ -145,7 +175,6 @@ def upload_schedule_csv():
                     'name': instructor_name, 'email': email, 'password': temp_pass
                 })
 
-            # COURSE LOGIC
             course = Course.query.filter_by(name=course_name, semester_code=semester_val).first()
             
             if not course:
@@ -169,40 +198,36 @@ def upload_schedule_csv():
                     room=clean_row.get('Room')
                 )
                 db.session.add(course)
-                report['courses_created'] += 1  # Increments for brand-new insertions
+                report['courses_created'] += 1
             else:
-                # Update existing records safely
                 course.teacher_id = teacher.id
                 course.day = day
                 course.time_in = time_in
                 course.time_out = time_out
                 course.room = clean_row.get('Room')
-                report['courses_updated'] += 1  # ✅ Increments for safe overwrites/updates
+                report['courses_updated'] += 1
 
         db.session.commit()
         return jsonify({'message': 'Batch process complete', 'report': report}), 200
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-        
+        return jsonify({'error': 'Database transaction storage failure'}), 500
+
 # ==========================================
-# 2. SYSTEM OVERVIEW (Analytics)
+# 2. SYSTEM METRICS OVERVIEW
 # ==========================================
 
 @admin_bp.route('/overview', methods=['GET'])
 @jwt_required()
+@admin_required()  # Secured
 def get_overview():
-    if not check_admin(): return jsonify({'error': 'Unauthorized'}), 403
-
     try:
-        # 1. KPI Counts
         students_count = User.query.filter_by(role='student').count()
         teachers_count = User.query.filter_by(role='teacher').count()
         courses_count = Course.query.count()
         submissions_count = Submission.query.count()
 
-        # 2. Recent Activity - New Users
         recent_users_query = User.query.order_by(User.id.desc()).limit(5).all()
         recent_users_list = [{
             'username': u.username, 
@@ -210,7 +235,6 @@ def get_overview():
             'date': 'Recently' 
         } for u in recent_users_query]
 
-        # 3. Recent Activity - Submissions
         recent_subs_query = Submission.query.order_by(Submission.submitted_at.desc()).limit(5).all()
         recent_subs_list = []
         for sub in recent_subs_query:
@@ -220,7 +244,6 @@ def get_overview():
                 'date': sub.submitted_at.strftime('%Y-%m-%d')
             })
 
-        # 4. CHART DATA (Last 7 Days)
         chart_data = []
         today = datetime.utcnow().date()
         
@@ -254,18 +277,16 @@ def get_overview():
         }), 200
 
     except Exception as e:
-        print(f"❌ ADMIN OVERVIEW ERROR: {e}") 
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Server error parsing system statistics overview'}), 500
 
 # ==========================================
-# 3. USER MANAGEMENT
+# 3. IDENTITY CONTROL WORKFLOWS
 # ==========================================
 
 @admin_bp.route('/users', methods=['GET'])
 @jwt_required()
+@admin_required()  # Secured
 def get_users():
-    if not check_admin(): return jsonify({'error': 'Unauthorized'}), 403
-
     users = User.query.order_by(User.id.desc()).all()
     return jsonify({
         'users': [{
@@ -278,51 +299,48 @@ def get_users():
 
 @admin_bp.route('/users/<int:user_id>', methods=['PUT'])
 @jwt_required()
+@admin_required()  # Secured
 def update_user_role(user_id):
-    if not check_admin(): return jsonify({'error': 'Unauthorized'}), 403
-    
     data = request.get_json()
     user = User.query.get(user_id)
     if not user: return jsonify({'error': 'User not found'}), 404
     
     if 'role' in data:
-        user.role = data['role']
+        # Enforce strict assignment parameters to block malicious privilege escalation attempts
+        if data['role'] in ['student', 'teacher', 'admin']:
+            user.role = data['role']
     
     db.session.commit()
-    return jsonify({'message': 'User updated successfully'}), 200
+    return jsonify({'message': 'User role updated successfully'}), 200
 
 @admin_bp.route('/users/<int:user_id>', methods=['DELETE'])
 @jwt_required()
+@admin_required()  # Secured
 def delete_user(user_id):
-    if not check_admin(): return jsonify({'error': 'Unauthorized'}), 403
-    
     user = User.query.get(user_id)
     if user:
         current_id = int(get_jwt_identity())
         if user.id == current_id:
-            return jsonify({'error': 'Cannot delete your own admin account'}), 400
+            return jsonify({'error': 'Cannot self-terminate active administrative seat scope.'}), 400
             
         db.session.delete(user)
         db.session.commit()
-    return jsonify({'message': 'User deleted'}), 200
+    return jsonify({'message': 'User account context dropped successfully.'}), 200
 
 # ==========================================
-# 4. COURSE MANAGEMENT (Fixed Logic)
+# 4. SCHEDULING MANAGEMENT
 # ==========================================
 
 @admin_bp.route('/courses', methods=['GET'])
 @jwt_required()
+@admin_required()  # Secured
 def get_all_courses_admin():
-    if not check_admin(): return jsonify({'error': 'Unauthorized'}), 403
-
     courses = Course.query.all()
     output = []
     for course in courses:
-        # ✅ FIX: Format the time string correctly
         display_time = None
         if course.time_in:
             display_time = course.time_in
-            # Append time_out only if it exists
             if course.time_out:
                 display_time += f" - {course.time_out}"
 
@@ -334,15 +352,11 @@ def get_all_courses_admin():
             'teacher_email': course.teacher.email if course.teacher else "N/A",
             'is_attendance_locked': course.is_attendance_locked,
             'student_count': len(course.enrollments),
-            
-            # Metadata fields
             'course_catalog_code': course.course_catalog_code, 
             'program': course.program,        
             'semester_code': course.semester_code, 
             'shift': course.shift,            
             'room': course.room,              
-            
-            # ✅ ADDED: Explicit Day and Time for the Class Schedule page
             'day': course.day,
             'time': display_time 
         })
@@ -351,44 +365,36 @@ def get_all_courses_admin():
 
 @admin_bp.route('/course/<int:course_id>', methods=['DELETE'])
 @jwt_required()
+@admin_required()  # Secured
 def delete_course(course_id):
-    if not check_admin(): return jsonify({'error': 'Unauthorized'}), 403
-    
     course = Course.query.get(course_id)
-    if not course: return jsonify({'error': 'Course not found'}), 404
+    if not course: return jsonify({'error': 'Course target reference not found'}), 404
 
     try:
-        # 1. Delete Attendance
         Attendance.query.filter_by(course_id=course.id).delete()
-        
-        # 2. Delete Assignments & Submissions
         assignments = Assignment.query.filter_by(course_id=course.id).all()
         for asn in assignments:
             Submission.query.filter_by(assignment_id=asn.id).delete()
             db.session.delete(asn)
 
-        # 3. Delete Materials
         Material.query.filter_by(course_id=course.id).delete()
-
-        # 4. Clear Students (Enrollments)
         course.students = [] 
 
-        # 5. Delete Course
         db.session.delete(course)
         db.session.commit()
-        return jsonify({'message': 'Course deleted'}), 200
+        return jsonify({'message': 'Course parameters dropped successfully.'}), 200
 
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        print(f"Error deleting course: {e}")
-        return jsonify({'error': 'Failed to delete course'}), 500
+        return jsonify({'error': 'Failed to safely clear cascading course targets.'}), 500
 
 # ==========================================
-# 5. SEMESTER MANAGEMENT
+# 5. SEMESTER TIMEFRAMES
 # ==========================================
 
 @admin_bp.route('/semesters', methods=['GET'])
 @jwt_required()
+@admin_required()  # Secured
 def get_semesters():
     semesters = Semester.query.order_by(Semester.id.desc()).all()
     output = [{
@@ -403,10 +409,9 @@ def get_semesters():
 
 @admin_bp.route('/semester', methods=['POST'])
 @jwt_required()
+@admin_required()  # Secured
 def create_semester():
-    if not check_admin(): return jsonify({'error': 'Unauthorized'}), 403
     data = request.get_json()
-    
     new_sem = Semester(
         name=data['name'],
         academic_year=data['academic_year'],
@@ -420,8 +425,8 @@ def create_semester():
 
 @admin_bp.route('/semester/<int:id>/toggle', methods=['PUT'])
 @jwt_required()
+@admin_required()  # Secured
 def toggle_semester(id):
-    if not check_admin(): return jsonify({'error': 'Unauthorized'}), 403
     sem = Semester.query.get(id)
     if sem:
         sem.is_active = not sem.is_active
@@ -430,13 +435,13 @@ def toggle_semester(id):
     return jsonify({'error': 'Not found'}), 404
 
 # ==========================================
-# 6. ATTENDANCE & REPORTS
+# 6. INTERVENTION MONITORING & DATA LOGS
 # ==========================================
 
 @admin_bp.route('/course/<int:course_id>/unlock', methods=['PUT'])
 @jwt_required()
+@admin_required()  # Secured
 def unlock_attendance(course_id):
-    if not check_admin(): return jsonify({'error': 'Unauthorized'}), 403
     course = Course.query.get(course_id)
     if course:
         course.is_attendance_locked = False
@@ -445,8 +450,9 @@ def unlock_attendance(course_id):
     return jsonify({'error': 'Not found'}), 404
 
 @admin_bp.route('/course/<int:course_id>/export_attendance', methods=['GET'])
+@jwt_required()
+@admin_required()  
 def export_attendance_excel(course_id):
-    # Public route (or add token query param logic) for file download
     course = Course.query.get(course_id)
     if not course: return jsonify({'error': 'Not found'}), 404
     
@@ -466,8 +472,9 @@ def export_attendance_excel(course_id):
     return output
 
 @admin_bp.route('/reports', methods=['GET'])
+@jwt_required()
+@admin_required()  # ✅ Added Critical Security: Staged metric scope visibility parameters behind authorization layer
 def get_reports():
-    # Fetch logs or return dummy data
     logs = ReportLog.query.order_by(ReportLog.date.desc()).all()
     if not logs:
         return jsonify({'reports': [
@@ -479,55 +486,34 @@ def get_reports():
         {"date": l.date, "generations": l.generations, "users": l.users} for l in logs
     ]}), 200
 
-# ✅ FIXED: Use @jwt_required() instead of @token_required
 @admin_bp.route('/course/<int:course_id>/schedule', methods=['PUT'])
-@jwt_required()  # <--- Changed this
-def update_course_schedule(course_id):  # <--- Removed 'current_user' argument
-    # 1. Admin Check
-    if not check_admin():
-        return jsonify({'error': 'Unauthorized access'}), 403
-
-    # 2. Find Course
+@jwt_required()
+@admin_required()  # Secured
+def update_course_schedule(course_id):
     course = Course.query.get(course_id)
     if not course:
         return jsonify({'error': 'Course not found'}), 404
 
-    # 3. Update Data
     data = request.json
-    
     if 'day' in data:
         course.day = data['day']
-        
     if 'time' in data:
-        # Save the time sent from frontend into 'time_in'
         course.time_in = data['time'] 
-        # Optional: You can clear time_out or calculate it if needed
-        # course.time_out = ... 
-
     if 'room' in data:
         course.room = data['room']
 
-    # 4. Save to DB
     try:
         db.session.commit()
         return jsonify({'message': 'Schedule updated successfully!'}), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Failed to save schedule structural edits.'}), 500
     
-# ... existing imports ...
-
 @admin_bp.route('/export-schedule', methods=['GET'])
 @jwt_required()
+@admin_required()  # Secured
 def export_final_schedule():
-    if not check_admin(): return jsonify({'error': 'Unauthorized'}), 403
-
-    # 1. Fetch all courses
     courses = Course.query.all()
-
-    # 2. SORTING LOGIC (Structured Data)
-    # Sort by: Semester Code -> Day -> Start Time
-    # We use a helper dict to sort Days correctly (Mon, Tue...) instead of Alphabetically (Fri, Mon...)
     day_order = {
         'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 
         'Thursday': 4, 'Friday': 5, 'Saturday': 6, 'Sunday': 7,
@@ -535,33 +521,25 @@ def export_final_schedule():
     }
 
     courses.sort(key=lambda x: (
-        x.semester_code or "Z",          # Group by Semester first
-        day_order.get(x.day, 8),         # Then by Day of week
-        x.time_in or "23:59"             # Then by Time
+        x.semester_code or "Z",          
+        day_order.get(x.day, 8),         
+        x.time_in or "23:59"             
     ))
 
-    # 3. Create CSV in memory
     si = StringIO()
     cw = csv.writer(si)
-    
-    # 4. Write Headers
     cw.writerow(['Course Code', 'Course Name', 'Instructor', 'Program', 'Semester', 'Day', 'Time In', 'Time Out', 'Room'])
 
-    # 5. Helper to Format Time (24h -> 12h AM/PM)
     def format_time(t_str):
         if not t_str: return "-"
         try:
-            # Try parsing HH:MM and converting to 00:00 AM/PM
             dt = datetime.strptime(t_str, "%H:%M")
             return dt.strftime("%I:%M %p")
-        except:
-            return t_str # Return original if parsing fails
+        except Exception:
+            return t_str
 
-    # 6. Write Data rows
     for c in courses:
         teacher_name = c.teacher.username if c.teacher else "Unassigned"
-        
-        # Format the specific fields
         fmt_time_in = format_time(c.time_in)
         fmt_time_out = format_time(c.time_out)
         
@@ -572,12 +550,11 @@ def export_final_schedule():
             c.program or "-",
             c.semester_code or "-",
             c.day or "-",
-            fmt_time_in,
-            fmt_time_out,
+            c.time_in,
+            c.time_out,
             c.room or "-"
         ])
 
-    # 7. Create Response
     output = make_response(si.getvalue())
     filename = f"Final_Schedule_{datetime.now().strftime('%Y-%m-%d')}.csv"
     output.headers["Content-Disposition"] = f"attachment; filename={filename}"
@@ -588,7 +565,7 @@ def export_final_schedule():
 
 @admin_bp.route('/announcements', methods=['GET'])
 def get_announcements():
-    # Allow public read (or secure it if you prefer)
+    # Public announcement fetch route remain open safely
     anns = Announcement.query.order_by(Announcement.created_at.desc()).all()
     return jsonify({'announcements': [{
         'id': a.id,
@@ -599,10 +576,9 @@ def get_announcements():
 
 @admin_bp.route('/announcement', methods=['POST'])
 @jwt_required()
+@admin_required()  # Secured
 def create_announcement():
-    if not check_admin(): return jsonify({'error': 'Unauthorized'}), 403
     data = request.get_json()
-    
     new_ann = Announcement(
         content=data['content'],
         type=data.get('type', 'info')
@@ -613,26 +589,22 @@ def create_announcement():
 
 @admin_bp.route('/announcement/<int:id>', methods=['DELETE'])
 @jwt_required()
+@admin_required()  # Secured
 def delete_announcement(id):
-    if not check_admin(): return jsonify({'error': 'Unauthorized'}), 403
     ann = Announcement.query.get(id)
     if ann:
         db.session.delete(ann)
         db.session.commit()
     return jsonify({'message': 'Deleted'}), 200
 
-from app.models.models import CourseFeedback, Course, User, db # 👈 Ensure User is imported
-
 @admin_bp.route('/feedback-stats', methods=['GET'])
 @jwt_required()
+@admin_required()  # Secured
 def get_feedback_stats():
-    if not check_admin(): return jsonify({'error': 'Unauthorized'}), 403
-
-    # ✅ FIX: Join with the User table to get the teacher's name
     results = db.session.query(
         CourseFeedback, 
         Course.name, 
-        User.username  # Select User.username instead of Course.teacher_name
+        User.username  
     ).join(Course, CourseFeedback.course_id == Course.id)\
      .join(User, Course.teacher_id == User.id).all()
 
@@ -641,7 +613,7 @@ def get_feedback_stats():
         data.append({
             'id': fb.id,
             'course': course_name,
-            'teacher': teacher_name, # This now correctly holds the username
+            'teacher': teacher_name, 
             'rating': fb.rating,
             'comment': fb.comment,
             'date': fb.created_at.strftime('%Y-%m-%d')

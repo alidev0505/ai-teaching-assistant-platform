@@ -17,16 +17,16 @@ class User(db.Model):
 
     # Extended profile fields
     department = db.Column(db.String(100), nullable=True)
-    bio = db.Column(db.Text, nullable=True)
-    profile_picture = db.Column(db.Text, nullable=True)  # base64 encoded
+    bio = db.Column(db.String(500), nullable=True) # Capped to prevent database column blooming
+    profile_picture = db.Column(db.String(50000), nullable=True) 
 
     # Password Reset
-    reset_token = db.Column(db.String(200), nullable=True)
+    reset_token = db.Column(db.String(64), nullable=True) # Normalizing to secure SHA-256 length hashes
     reset_token_expires = db.Column(db.DateTime, nullable=True)
 
     # Email Verification
     is_verified = db.Column(db.Boolean, default=False)
-    verification_token = db.Column(db.String(200), nullable=True)
+    verification_token = db.Column(db.String(64), nullable=True)
     
     # Relationships
     courses_taught = db.relationship('Course', backref='teacher', lazy=True, foreign_keys='Course.teacher_id')
@@ -46,7 +46,7 @@ class User(db.Model):
             'created_at': self.created_at.strftime('%B %d, %Y') if self.created_at else 'N/A',
         }
 
-# Add this class
+
 class Semester(db.Model):
     __tablename__ = 'semesters'
     
@@ -72,13 +72,8 @@ class Course(db.Model):
     semester_id = db.Column(db.Integer, db.ForeignKey('semesters.id'), nullable=False)
     is_attendance_locked = db.Column(db.Boolean, default=False)
     
-    # --- NEW FIELDS FOR CSV SCHEDULE ---
     program = db.Column(db.String(50))
     
-    # ❌ CHANGE THIS LINE:
-    # semester = db.Column(db.String(20))
-    
-    # ✅ TO THIS (Rename column to avoid conflict):
     semester_code = db.Column(db.String(20)) 
     
     shift = db.Column(db.String(10))
@@ -111,7 +106,6 @@ class GeneratedContent(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     material_id = db.Column(db.Integer, db.ForeignKey('materials.id'), nullable=False)
-    # ✅ ADD THIS LINE:
     course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=True) 
     
     content_type = db.Column(db.String(50), nullable=False)  # 'lecture', 'quiz', 'assignment', 'exam'
@@ -119,7 +113,6 @@ class GeneratedContent(db.Model):
     file_path = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# In backend/app/models/models.py
 
 class Assignment(db.Model):
     __tablename__ = 'assignments'
@@ -127,11 +120,10 @@ class Assignment(db.Model):
     course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    content = db.Column(db.Text) # Can store instructions
-    file_path = db.Column(db.String(500)) # <--- ADD THIS LINE
+    content = db.Column(db.Text) 
+    file_path = db.Column(db.String(500)) 
     deadline = db.Column(db.DateTime)
     
-    # ✅ NEW: Stores the teacher's correct solution/answer key
     teacher_solution = db.Column(db.Text, nullable=True) 
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -146,16 +138,14 @@ class Submission(db.Model):
     assignment_id = db.Column(db.Integer, db.ForeignKey('assignments.id'), nullable=False)
     student_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     
-    # ✅ NEW: Stores the student's text answer for AI Analysis
     answer_text = db.Column(db.Text, nullable=True) 
 
-    content = db.Column(db.Text) # Can be used for file description or small notes
-    file_path = db.Column(db.String(500)) # If they upload a file
+    content = db.Column(db.Text) 
+    file_path = db.Column(db.String(500)) 
     
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='submitted')  # 'submitted', 'reviewed'
     
-    # ✅ NEW: ASSESSMENT FIELDS
     ai_score = db.Column(db.Float, default=0.0)         # 0.0 to 1.0 (60% = 0.6)
     plagiarism_score = db.Column(db.Float, default=0.0) # 0.0 to 1.0
     similarity_score = db.Column(db.Float, default=0.0) # 0.0 to 1.0 (Teacher match)
@@ -165,7 +155,7 @@ class Submission(db.Model):
 
     is_published = db.Column(db.Boolean, default=False)
 
-    student = db.relationship('User', backref='submissions')
+    student = db.relationship('User', backref=db.backref('submissions', passive_deletes=True))
 
 class Enrollment(db.Model):
     __tablename__ = 'enrollments'
@@ -191,7 +181,7 @@ class LiveSession(db.Model):
     title = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(200))
     start_time = db.Column(db.DateTime, nullable=False)
-    meeting_link = db.Column(db.String(255), nullable=False) # We will auto-generate this
+    meeting_link = db.Column(db.String(255), nullable=False) 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -259,7 +249,6 @@ class StudentAnswer(db.Model):
     is_correct = db.Column(db.Boolean, nullable=False)
 
 
-# 12. REPORT LOGS (AI Usage) <-- THIS WAS MISSING
 class ReportLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.String(20), nullable=False)
@@ -276,14 +265,12 @@ class Announcement(db.Model):
     target = db.Column(db.String(20), default='all')
 
 class CourseFeedback(db.Model):
-    __tablename__ = 'course_feedback'  # Best practice to name the table explicitly
+    __tablename__ = 'course_feedback'  
     
     id = db.Column(db.Integer, primary_key=True)
     
-    # ✅ FIX 1: Change 'course.id' to 'courses.id' (Plural)
     course_id = db.Column(db.Integer, db.ForeignKey('courses.id'), nullable=False)
     
-    # ✅ FIX 2: Change 'user.id' to 'users.id' (Plural - You already did this one)
     student_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False) 
     
     rating = db.Column(db.Integer, nullable=False) 

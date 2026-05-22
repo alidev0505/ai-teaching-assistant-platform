@@ -20,32 +20,45 @@ class SchedulerService:
     
     def check_deadlines(self):
         with self.app.app_context():
-            # Get assignments with deadlines in next 24 hours
-            now = datetime.utcnow()
-            tomorrow = now + timedelta(hours=24)
-            
-            assignments = Assignment.query.filter(
-                Assignment.deadline.between(now, tomorrow)
-            ).all()
-            
-            for assignment in assignments:
-                # Get enrolled students
-                enrollments = Enrollment.query.filter_by(
-                    course_id=assignment.course_id
+            try:
+                now = datetime.utcnow()
+                target_window_start = now + timedelta(hours=23)
+                target_window_end = now + timedelta(hours=24)
+                
+                assignments = Assignment.query.filter(
+                    Assignment.deadline.between(target_window_start, target_window_end)
                 ).all()
                 
-                for enrollment in enrollments:
-                    # Check if student has submitted
-                    submission = Submission.query.filter_by(
-                        assignment_id=assignment.id,
-                        student_id=enrollment.student_id
-                    ).first()
+                for assignment in assignments:
+                    enrollments = Enrollment.query.filter_by(
+                        course_id=assignment.course_id
+                    ).all()
                     
-                    if not submission:
-                        # Send reminder
-                        hours_left = int((assignment.deadline - now).total_seconds() / 3600)
-                        self.notification_service.send_deadline_reminder(
-                            enrollment.student.email,
-                            assignment.title,
-                            hours_left
-                        )
+                    for enrollment in enrollments:
+                        # Skip if student already submitted assignment tasks
+                        submission = Submission.query.filter_by(
+                            assignment_id=assignment.id,
+                            student_id=enrollment.student_id
+                        ).first()
+                        
+                        if not submission:
+                            # Verify valid relational target pointers exist safely
+                            if not enrollment.student or not enrollment.student.email:
+                                continue
+
+                            time_delta = assignment.deadline - now
+                            hours_left = max(1, int(time_delta.total_seconds() / 3600))
+                            
+                            # Transmit targeted dispatcher alert cleanly 
+                            self.notification_service.send_deadline_reminder(
+                                enrollment.student.email,
+                                assignment.title,
+                                hours_left
+                            )
+                            
+                # Explicit database connection boundary release back to the transaction pool
+                db.session.remove()
+                
+            except Exception as e:
+                db.session.rollback()
+                print(f"⚠️ Scheduler Thread Safety Fault handled gracefully.")

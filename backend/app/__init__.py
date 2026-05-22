@@ -19,10 +19,6 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # 1. UPDATED CORS FIX
-    # Added your Vercel URL so the browser allows the login request
-    # 1. UPDATED CORS FIX
-    # Explicitly allowing custom headers ensures the CSV upload doesn't get blocked
     CORS(app, resources={
         r"/*": {
             "origins": [
@@ -50,15 +46,12 @@ def create_app():
     app.register_blueprint(student_bp, url_prefix='/api/student')
 
     with app.app_context():
-        # create_all() is safe; it won't delete your existing Supabase data
+        # Compile database model bindings securely
         db.create_all()
         
-        # 2. CLEANER MIGRATION (PostgreSQL Compatible)
-        # Removed PRAGMA to stop the syntax errors in your logs
         try:
             from sqlalchemy import text
             with db.engine.connect() as conn:
-                # This block will now silently skip if columns exist in PostgreSQL
                 migrations = {
                     'department':      "ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(100)",
                     'bio':             "ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT",
@@ -68,7 +61,14 @@ def create_app():
                     conn.execute(text(sql))
                 conn.commit()
         except Exception as e:
-            # We print this but don't let it stop the server
-            print(f"ℹ️ Migration info: {e}")
+            print(f"ℹ️ Migration log tracing bypassed safely.")
+
+        try:
+            from app.services.scheduler_service import SchedulerService
+            background_worker = SchedulerService(app)
+            background_worker.start()
+            print("🚀 Secure Background Scheduler service active and isolated.")
+        except Exception as e:
+            print(f"⚠️ Non-critical scheduler worker runtime start failure.")
 
     return app

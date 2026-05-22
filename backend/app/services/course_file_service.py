@@ -60,19 +60,22 @@ class CourseFileService:
             # 4. Assignments
             assigns = Assignment.query.filter_by(course_id=course.id).all()
             for a in assigns:
-                zf.writestr(f"4_Assignments/Assignment_Question/{a.title}_Info.txt", f"Title: {a.title}\nTask: {a.description}")
-                zf.writestr(f"4_Assignments/Assignment_Solution/{a.title}_Solution.txt", str(a.teacher_solution))
+                zf.writestr(f"4_Assignments/Assignment_Question/{a.title}_Info.txt", f"Title: {a.title}\nTask: {a.description or ''}")
+                zf.writestr(f"4_Assignments/Assignment_Solution/{a.title}_Solution.txt", str(a.teacher_solution or ''))
                 
-                asub = Submission.query.filter_by(assignment_id=a.id).order_by(Submission.marks.desc()).all()
+                asub = Submission.query.filter_by(assignment_id=a.id).order_by(Submission.obtained_marks.desc()).all()
                 if asub:
-                    zf.writestr(f"4_Assignments/Assignment_Grading/{a.title}_Stats.txt", f"High: {asub[0].marks}\nLow: {asub[-1].marks}")
+                    high_m = getattr(asub[0], 'obtained_marks', 0)
+                    low_m = getattr(asub[-1], 'obtained_marks', 0)
+                    zf.writestr(f"4_Assignments/Assignment_Grading/{a.title}_Stats.txt", f"High Marks: {high_m}\nLow Marks: {low_m}")
 
             # 5. Student Attendance
             attendance_recs = Attendance.query.filter_by(course_id=course.id).all()
             att_report = "Date, Student ID, Status\n"
             for att in attendance_recs:
                 sid = getattr(att, 'user_id', getattr(att, 'student_id', 'N/A'))
-                att_report += f"{att.date}, {sid}, {'Present' if att.is_present else 'Absent'}\n"
+                status_str = getattr(att, 'status', 'Absent')
+                att_report += f"{att.date.isoformat() if hasattr(att.date, 'isoformat') else att.date}, {sid}, {status_str}\n"
             zf.writestr("5_Student_Attendance/Attendance_Summary.csv", att_report)
 
             # 6. Course Review

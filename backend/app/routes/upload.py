@@ -66,6 +66,11 @@ def upload_material():
     if not course_id or not title:
         return jsonify({'error': 'Course ID and title are required'}), 400
     
+    try:
+        course_id = int(course_id_raw)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Malformed course identifier parameters.'}), 400
+    
     # Verify course belongs to teacher
     course = Course.query.get(course_id)
     if not course or course.teacher_id != user_id:
@@ -155,20 +160,38 @@ def get_courses():
 @upload_bp.route('/materials/<int:course_id>', methods=['GET'])
 @jwt_required()
 def get_materials(course_id):
+    try:
+        user_id = int(get_jwt_identity())
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid security signature context'}), 401
+
     course = Course.query.get(course_id)
     if not course:
         return jsonify({'error': 'Course not found'}), 404
+        
+    from app.models.models import User, Enrollment
+    user = User.query.get(user_id)
+    
+    if user.role == 'teacher':
+        # Verify this teacher actually owns the requested course section
+        if course.teacher_id != user_id:
+            return jsonify({'error': 'Access denied. You are not the assigned instructor for this section.'}), 403
+    else:
+        # Verify the student is actively enrolled in this specific course section
+        is_enrolled = Enrollment.query.filter_by(student_id=user_id, course_id=course_id).first()
+        if not is_enrolled:
+            return jsonify({'error': 'Access denied. You must be actively enrolled to view these materials.'}), 403
         
     materials = Material.query.filter_by(course_id=course_id).all()
     
     return jsonify({
         'course_name': course.name,
-        'student_count': len(course.enrollments), # <--- Added Count
+        'student_count': len(course.enrollments),
         'materials': [{
             'id': m.id,
             'title': m.title,
             'file_type': m.file_type,
             'is_processed': m.is_processed,
-            'uploaded_at': m.uploaded_at.isoformat()
+            'uploaded_at': m.uploaded_at.isoformat() if m.uploaded_at else None
         } for m in materials]
     }), 200

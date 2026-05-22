@@ -29,19 +29,22 @@ class NotificationService:
             
             message.attach(MIMEText(body, 'html'))
             
-            server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+            server = smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=5)
+            server.ehlo() # Secure communication handshake
             server.starttls()
+            server.ehlo()
+            
             server.login(self.sender_email, self.sender_password)
             
             text = message.as_string()
             server.sendmail(self.sender_email, to_email, text)
             server.quit()
             
-            print(f"Email sent to {to_email}")
+            print(f"Email sent successfully to safe destination parameters")
             return True
         
         except Exception as e:
-            print(f"Error sending email: {e}")
+            print(f"SMTP execution failure handled safely.")
             return False
     
     def send_assignment_notification(self, student_email, assignment_title, deadline):

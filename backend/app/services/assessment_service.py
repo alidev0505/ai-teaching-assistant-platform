@@ -8,8 +8,6 @@ from duckduckgo_search import DDGS
 
 class AssessmentService:
     
-    # --- CONFIGURATION ---
-    # Change this to 'GPTZERO' or 'ORIGINALITY' later when you buy a paid key
     AI_DETECTION_PROVIDER = 'HUGGINGFACE' 
     
     # Best Free Model on Hugging Face (RoBERTa Large)
@@ -87,7 +85,7 @@ class AssessmentService:
         return results
 
     # ---------------------------------------------------------
-    # 🧠 AI DETECTION ENGINE (MODULAR)
+    #  AI DETECTION ENGINE (MODULAR)
     # ---------------------------------------------------------
 
     @staticmethod
@@ -145,66 +143,68 @@ class AssessmentService:
         1. Get API Key from GPTZero
         2. Change AI_DETECTION_PROVIDER = 'GPTZERO'
         """
-        # API_KEY = os.getenv('GPTZERO_API_KEY')
-        # response = requests.post('https://api.gptzero.me/v2/predict/text', ...)
-        # return response.json()['documents'][0]['completely_generated_prob']
         print("⚠️ Paid Module Not Configured Yet")
         return 0.0
 
-    # ---------------------------------------------------------
-    # 🕵️ PLAGIARISM & GRADING ENGINES
-    # ---------------------------------------------------------
-
     @staticmethod
     def check_internal_plagiarism(current_text, other_texts):
-        """Checks similarity against other students using TF-IDF."""
+        """Checks similarity against other students using TF-IDF with length clipping."""
         if not other_texts: return 0.0
         
         try:
-            documents = [current_text] + other_texts
+            safe_current = current_text[:8000]
+            safe_others = [str(t)[:8000] for t in other_texts if t]
+            
+            documents = [safe_current] + safe_others
             tfidf_vectorizer = TfidfVectorizer().fit_transform(documents)
             cosine_matrix = cosine_similarity(tfidf_vectorizer[0:1], tfidf_vectorizer)
             
-            # Index 0 is self, so look at index 1 onwards
             similarities = cosine_matrix[0][1:]
-            
             if len(similarities) > 0:
                 return float(max(similarities))
             return 0.0
-        except:
+        except Exception:
             return 0.0
 
     @staticmethod
     def check_external_plagiarism(text):
         """
-        Checks random text chunk against DuckDuckGo.
+        Checks text chunk against web engines safely, avoiding runtime IP bans.
         """
         try:
             words = text.split()
             if len(words) < 20: return 0.0
             
-            # Check a chunk from the middle
             start_idx = len(words) // 3
-            chunk = " ".join(words[start_idx : start_idx + 25])
+            # Keep the search phrase highly targeted (max 20 words) to prevent API payload errors
+            chunk = " ".join(words[start_idx : start_idx + 20]).strip()
             
-            with DDGS() as ddgs:
+            with DDGS(timeout=5) as ddgs:
                 results = list(ddgs.text(f'"{chunk}"', max_results=1))
                 if results:
-                    return 1.0 # Found exact match
+                    return 1.0 
             return 0.0
         except Exception as e:
-            print(f"External Plagiarism Error: {e}")
+            # Silently log network blockages without throwing 500 runtime faults to the grading stream
+            print(f"ℹ️ Web lookup bypassed safely: {e}")
             return 0.0
 
     @staticmethod
     def compare_with_teacher(student_text, teacher_text):
         """
-        Semantically compares student answer vs teacher key.
+        Semantically compares student answer vs teacher key with size-bound boundaries.
         """
         try:
-            embeddings = AssessmentService.comparison_model.encode([student_text, teacher_text])
+            if not student_text or not teacher_text:
+                return 0.0
+                
+            safe_student = student_text[:5000]
+            safe_teacher = teacher_text[:5000]
+            
+            embeddings = AssessmentService.comparison_model.encode([safe_student, safe_teacher])
             a = embeddings[0]
             b = embeddings[1]
+            
             score = np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
             return float(score)
         except Exception as e:

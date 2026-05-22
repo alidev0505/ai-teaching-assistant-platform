@@ -107,10 +107,17 @@ class RAGService:
     
     def load_index(self, material_id):
         """
-        Load existing FAISS index for a material.
+        Load existing FAISS index and plain text chunks securely without deserialization vulnerabilities.
         """
-        index_path = os.path.join(self.vector_db_path, f'index_{material_id}.faiss')
-        chunks_path = os.path.join(self.vector_db_path, f'chunks_{material_id}.pkl')
+        
+        try:
+            safe_id = int(material_id)
+        except (ValueError, TypeError):
+            print("❌ Security Exception: Malformed material identifier token.")
+            return False
+
+        index_path = os.path.join(self.vector_db_path, f'index_{safe_id}.faiss')
+        chunks_path = os.path.join(self.vector_db_path, f'chunks_{safe_id}.json') # Swapped to safe JSON tracking files
         
         if not os.path.exists(index_path) or not os.path.exists(chunks_path):
             print(f"⚠️ Index not found at: {index_path}")
@@ -118,22 +125,32 @@ class RAGService:
         
         try:
             self.index = faiss.read_index(index_path)
-            with open(chunks_path, 'rb') as f:
-                self.chunks = pickle.load(f)
             
-            self.material_id = material_id
+            import json
+            with open(chunks_path, 'r', encoding='utf-8') as f:
+                self.chunks = json.load(f)
+            
+            self.material_id = safe_id
             return True
         except Exception as e:
-            print(f"❌ Error loading index: {e}")
+            print(f"❌ Error loading index components safely: {e}")
             return False
     
     def _save_index(self, material_id):
         """
-        Save FAISS index and chunks to disk.
+        Save FAISS index and text arrays securely to disk using standard JSON.
         """
-        index_path = os.path.join(self.vector_db_path, f'index_{material_id}.faiss')
-        chunks_path = os.path.join(self.vector_db_path, f'chunks_{material_id}.pkl')
-        
-        faiss.write_index(self.index, index_path)
-        with open(chunks_path, 'wb') as f:
-            pickle.dump(self.chunks, f)
+        try:
+            safe_id = int(material_id)
+            index_path = os.path.join(self.vector_db_path, f'index_{safe_id}.faiss')
+            chunks_path = os.path.join(self.vector_db_path, f'chunks_{safe_id}.json') # Fixed target mapping extension
+            
+            faiss.write_index(self.index, index_path)
+            
+            # Safe JSON array writing loop wrapper
+            import json
+            with open(chunks_path, 'w', encoding='utf-8') as f:
+                json.dump(self.chunks, f, ensure_ascii=False)
+                
+        except Exception as e:
+            print(f"❌ Storage layer persistence handling exception: {e}")
