@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getReports } from '../../services/api';
-import { useNavigate } from 'react-router-dom'; // 1. Import useNavigate
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
 } from 'recharts';
@@ -9,6 +9,7 @@ const AdminReports = () => {
   const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [systemAlert, setSystemAlert] = useState({ type: '', text: '' });
 
   useEffect(() => {
     fetchData();
@@ -17,21 +18,24 @@ const AdminReports = () => {
   const fetchData = async () => {
     try {
       const res = await getReports();
-      // Ensure data is sorted by date
-      const sorted = (res.data.reports || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+      const sorted = (res?.data?.reports || []).sort((a, b) => new Date(a.date) - new Date(b.date));
       setData(sorted);
     } catch (err) {
-      console.error(err);
+      console.error("Critical telemetry logs synchronization error:", err);
     } finally {
       setLoading(false);
     }
   };
 
   const downloadCSV = () => {
-    if (data.length === 0) return alert("No data to export");
+    setSystemAlert({ type: '', text: '' });
+    if (data.length === 0) {
+      return setSystemAlert({ type: 'error', text: 'Export Interrupted: No report data logged to compute.' });
+    }
+    
     const csvContent = "data:text/csv;charset=utf-8," 
       + "Date,AI Generations,Active Users\n"
-      + data.map(e => `${e.date},${e.generations},${e.users}`).join("\n");
+      + data.map(e => `${e.date},${e.generations || 0},${e.users || 0}`).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -41,145 +45,121 @@ const AdminReports = () => {
     link.remove();
   };
 
-  // --- KPI CALCULATIONS ---
-  const totalGenerations = data.reduce((acc, curr) => acc + (curr.generations || 0), 0);
-  const avgUsers = data.length > 0 ? Math.round(data.reduce((acc, curr) => acc + (curr.users || 0), 0) / data.length) : 0;
-  const peakDay = data.reduce((max, curr) => (curr.generations > max.generations ? curr : max), { generations: 0, date: 'N/A' });
+  // ─── SAFE KPI INTERPOLATIONS CALCULATIONS ──────────────────────────────────
+  const totalGenerations = data.reduce((acc, curr) => acc + (Number(curr.generations) || 0), 0);
+  const avgUsers = data.length > 0 ? Math.round(data.reduce((acc, curr) => acc + (Number(curr.users) || 0), 0) / data.length) : 0;
+  const peakDay = data.reduce((max, curr) => ((Number(curr.generations) || 0) > (Number(max.generations) || 0) ? curr : max), { generations: 0, date: 'BAI-N/A' });
 
   return (
-    <div style={{ background: 'var(--bg-body)', minHeight: '100vh', paddingBottom: '40px' }}>
+    <div className="ars-page-wrapper">
       
-      {/* 1. ADMIN HEADER */}
-      <div style={{ background: '#1e293b', color: 'white', padding: '40px 0 80px 0' }}>
-        <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
-          <button 
-            onClick={() => navigate(-1)} 
-            style={{ 
-              background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none', 
-              padding: '8px 16px', borderRadius: '6px', marginBottom: '15px', cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', gap: '5px'
-            }}
-          >
-            ← Back
-          </button>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
-            <div>
-              <h1 style={{ margin: 0, fontSize: 'clamp(1.8rem, 5vw, 2.5rem)', color: 'white' }}>System Analytics</h1>
-              <p style={{ opacity: 0.8, marginTop: '10px' }}>Monitor AI usage and platform engagement.</p>
+      {/* ── 1. GLOBAL COMMAND HERO BANNER CODES ── */}
+      <div className="adm-hero-banner">
+        <div className="adm-grid-mesh" />
+        <div className="adm-hero-container max-width-wide">
+          <div className="ars-hero-alignment-header-row">
+            <div className="ars-brand-text-block">
+              <button onClick={() => navigate(-1)} className="adm-btn-back">
+                ← Back to Dashboard
+              </button>
+              <h1 className="adm-hero-main-title">System Usage Analytics</h1>
+              <p className="adm-hero-subtitle">Monitor RAG pipeline utilization, active platform traffic, and model compilation endpoints.</p>
             </div>
             
-            <button 
-              onClick={downloadCSV} 
-              className="btn-success" 
-              style={{ 
-                background: '#10b981', color: 'white', padding: '12px 24px', 
-                borderRadius: '8px', fontSize: '1rem', fontWeight: 'bold', border: 'none', cursor: 'pointer',
-                boxShadow: '0 4px 6px rgba(16, 185, 129, 0.4)',
-                display: 'flex', alignItems: 'center', gap: '8px'
-              }}
-            >
-              Export CSV
+            <button onClick={downloadCSV} className="ars-btn-success-export-csv">
+              📥 Export Metrics Ledger
             </button>
           </div>
         </div>
       </div>
 
-      <div className="container" style={{ maxWidth: '1200px', margin: '-50px auto 0', padding: '0 20px' }}>
+      {/* ── 2. SCORING KPIS MATRIX CARDS DECK ── */}
+      <div className="adm-content-workspace max-width-wide">
         
-        {/* 2. KPI CARDS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '25px', marginBottom: '40px' }}>
-          
-          <div className="card" style={{ padding: '25px', borderLeft: '5px solid #8b5cf6', background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '2rem', lineHeight: '1', color: '#1e293b' }}>{totalGenerations}</h3>
-              <p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '0.9rem', fontWeight: '600', textTransform: 'uppercase' }}>Total AI Generations</p>
-            </div>
+        {systemAlert.text && (
+          <div className={`auth-alert ${systemAlert.type === 'error' ? 'error' : 'success'} adc-spaced-banner`}>
+            {systemAlert.text}
+          </div>
+        )}
+
+        <div className="sa-stats-grid-row adb-spaced-row-margin">
+          <div className="card sa-stat-node-box box-accent-border-purple adb-kpi-hover-card">
+            <div className="sav-stat-node-label">Total AI Pipeline Cycles</div>
+            <div className="sa-stat-integer-value text-color-purple m-top-6">{totalGenerations}</div>
           </div>
 
-          <div className="card" style={{ padding: '25px', borderLeft: '5px solid #3b82f6', background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '2rem', lineHeight: '1', color: '#1e293b' }}>{avgUsers}</h3>
-              <p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '0.9rem', fontWeight: '600', textTransform: 'uppercase' }}>Avg. Daily Users</p>
-            </div>
+          <div className="card sa-stat-node-box box-accent-border-blue adb-kpi-hover-card">
+            <div className="sav-stat-node-label">Avg. Daily Concurrent Logins</div>
+            <div className="sa-stat-integer-value text-color-blue m-top-6">{avgUsers}</div>
           </div>
 
-          <div className="card" style={{ padding: '25px', borderLeft: '5px solid #f59e0b', background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '2rem', lineHeight: '1', color: '#1e293b' }}>{peakDay.generations}</h3>
-              <p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '0.9rem', fontWeight: '600', textTransform: 'uppercase' }}>Peak Usage ({peakDay.date})</p>
-            </div>
+          <div className="card sa-stat-node-box box-accent-border-amber adb-kpi-hover-card">
+            <div className="sav-stat-node-label">Peak Usage Footprint</div>
+            <div className="sa-stat-integer-value text-color-amber m-top-6">{peakDay.generations}</div>
+            <div className="sav-stat-node-subtext m-top-6">Calculated limit: {peakDay.date}</div>
           </div>
-
         </div>
 
-        {/* 3. CHARTS SECTION */}
-        {/* minWidth: 0 prevents flex/grid collapse bug */}
-        <div className="card" style={{ padding: '30px', marginBottom: '40px', background: 'white', borderRadius: '12px', minWidth: 0, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-          <h3 style={{ marginBottom: '30px', color: '#334155' }}>Usage Trends</h3>
+        {/* ── 3. VISUAL DISTRIBUTION CHARTS MATRIX PANEL ── */}
+        <div className="card adb-panel-card-container adb-spaced-row-margin">
+          <h3 className="ta-chart-inner-title">📈 Vector Content Generation Trends</h3>
           
-          {/* Fixed Height Wrapper */}
-          <div style={{ width: '100%', height: 350 }}>
+          <div className="ars-chart-canvas-box-rail">
             {data.length > 0 ? (
-                // FIX: Use numeric height={350} instead of "100%"
-                <ResponsiveContainer width="100%" height={350}>
-                <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                    <defs>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
                     <linearGradient id="colorGen" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
                     </linearGradient>
-                    </defs>
-                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <Tooltip 
-                    contentStyle={{ background: 'white', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
-                    cursor={{ stroke: '#cbd5e1', strokeWidth: 2 }}
-                    />
-                    <Area type="monotone" dataKey="generations" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorGen)" strokeWidth={3} />
+                  </defs>
+                  <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <Tooltip 
+                    contentStyle={{ background: '#ffffff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+                    cursor={{ stroke: '#cbd5e1', strokeWidth: 1.5 }}
+                  />
+                  <Area type="monotone" dataKey="generations" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorGen)" strokeWidth={3} name="Generations Out" />
                 </AreaChart>
-                </ResponsiveContainer>
+              </ResponsiveContainer>
             ) : (
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
-                    No data available for chart
-                </div>
+              <div className="std-chart-empty-placeholder">📊 Processing infrastructure stats: No operational usage metrics logged yet.</div>
             )}
           </div>
         </div>
 
-        {/* 4. DETAILED DATA TABLE */}
-        <div className="card" style={{ padding: '0', overflow: 'hidden', background: 'white', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-          <div style={{ padding: '25px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-            <h3 style={{ margin: 0, color: '#334155' }}>Detailed Logs</h3>
+        {/* ── 4. ITEMIZED DETAILED HISTORICAL LEDGER DATA TABLE ── */}
+        <div className="card adc-table-container-card">
+          <div className="qd-panel-inner-header-banner">
+            <h3 className="qd-visual-panel-title remove-margin-bottom">Detailed Transmission Logs</h3>
           </div>
           
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
-              <thead style={{ background: '#f1f5f9', borderBottom: '2px solid #e2e8f0' }}>
+          <div className="adc-responsive-table-scroll-wrapper">
+            <table className="adc-master-schedule-table">
+              <thead>
                 <tr>
-                  <th style={{ padding: '15px 25px', textAlign: 'left', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>Date</th>
-                  <th style={{ padding: '15px 25px', textAlign: 'left', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>AI Generations</th>
-                  <th style={{ padding: '15px 25px', textAlign: 'left', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>Active Users</th>
-                  <th style={{ padding: '15px 25px', textAlign: 'right', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>Status</th>
+                  <th>Log Processing Date</th>
+                  <th>Alphanumeric AI Generative Inferences</th>
+                  <th>Active Concurrent Sessions</th>
+                  <th className="adc-text-right">Database Verification</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                   <tr><td colSpan="4" style={{ padding: '30px', textAlign: 'center' }}>Loading data...</td></tr>
+                   <tr><td colSpan="4" className="adc-table-empty-fallback-text">Synchronizing repository traffic metrics sheets...</td></tr>
                 ) : data.length === 0 ? (
-                   <tr><td colSpan="4" style={{ padding: '30px', textAlign: 'center' }}>No reports found.</td></tr>
+                   <tr><td colSpan="4" className="adc-table-empty-fallback-text">No analytical traffic records reported inside current timeframe windows.</td></tr>
                 ) : (
                   data.map((row, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                      <td style={{ padding: '15px 25px', fontWeight: '600', color: '#1e293b' }}>{row.date}</td>
-                      <td style={{ padding: '15px 25px', color: '#8b5cf6', fontWeight: 'bold' }}>{row.generations}</td>
-                      <td style={{ padding: '15px 25px', color: '#334155' }}>{row.users}</td>
-                      <td style={{ padding: '15px 25px', textAlign: 'right' }}>
-                        <span style={{ 
-                          background: '#dcfce7', color: '#166534', padding: '4px 10px', 
-                          borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' 
-                        }}>
-                          Logged
+                    <tr key={idx} className="adc-table-tr-node">
+                      <td className="font-bold adc-course-main-string-title">{row.date}</td>
+                      <td className="text-color-purple font-weight-800">{row.generations || 0} generations</td>
+                      <td className="adc-td-instructor-text-cell">{row.users || 0} active nodes</td>
+                      <td className="adc-text-right">
+                        <span className="padding-badge-override ab-banner ab-type-info font-weight-800">
+                          LOGGED OK
                         </span>
                       </td>
                     </tr>

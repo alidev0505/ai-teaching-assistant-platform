@@ -7,15 +7,18 @@ const ManageSemesters = () => {
   const [semesters, setSemesters] = useState([]);
   const [form, setForm] = useState({ name: 'Fall', academic_year: '', start_date: '', end_date: '' });
   const [loading, setLoading] = useState(true);
+  const [systemAlert, setSystemAlert] = useState({ type: '', text: '' });
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { 
+    loadData(); 
+  }, []);
 
   const loadData = async () => {
     try {
       const res = await getSemesters();
-      setSemesters(res.data.semesters);
+      setSemesters(res?.data?.semesters || []);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to synchronize academic calendar datasets.", err);
     } finally {
       setLoading(false);
     }
@@ -23,162 +26,163 @@ const ManageSemesters = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSystemAlert({ type: '', text: '' });
+
+    if (!form.academic_year.trim()) {
+      return setSystemAlert({ type: 'error', text: 'Validation Error: Academic year parameters required.' });
+    }
+
     try {
-      await createSemester(form);
-      alert('Semester Created Successfully!');
-      setForm({ name: 'Fall', academic_year: '', start_date: '', end_date: '' }); // Reset
+      await createSemester({
+        name: form.name,
+        academic_year: form.academic_year.trim(),
+        start_date: form.start_date,
+        end_date: form.end_date
+      });
+      setSystemAlert({ type: 'success', text: '🚀 New academic semester initialized and mapped successfully!' });
+      setForm({ name: 'Fall', academic_year: '', start_date: '', end_date: '' }); 
       loadData();
     } catch (err) { 
-        alert('Error creating semester. Please check your inputs.'); 
+      setSystemAlert({ type: 'error', text: 'Creation Disruption: Stalled writing semester configuration fields.' }); 
     }
   };
 
   const handleToggle = async (id) => {
+    setSystemAlert({ type: '', text: '' });
     try {
         await toggleSemester(id);
         loadData();
     } catch (err) {
-        alert("Failed to update status");
+        setSystemAlert({ type: 'error', text: 'Override Failure: Failed to update operational active status.' });
     }
   };
 
   return (
-    <div style={{ background: 'var(--bg-body)', minHeight: '100vh', paddingBottom: '40px' }}>
+    <div className="ms-page-wrapper">
       
-      {/* 1. ADMIN HEADER */}
-      <div style={{ background: '#1e293b', color: 'white', padding: '40px 0 80px 0' }}>
-        <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
-            <button 
-            onClick={() => navigate(-1)} 
-            style={{ 
-              background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none', 
-              padding: '8px 16px', borderRadius: '6px', marginBottom: '15px', cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', gap: '5px'
-            }}
-          >
-            ← Back
-          </button>
-          <h1 style={{ margin: 0, fontSize: 'clamp(1.8rem, 5vw, 2.5rem)', color: 'white' }}>Semester Management</h1>
-          <p style={{ opacity: 0.8, marginTop: '10px' }}>Configure academic terms and active sessions.</p>
+      {/* ── HERO BANNER HEADER CONSOLE ── */}
+      <div className="adm-hero-banner">
+        <div className="adm-grid-mesh" />
+        <div className="adm-hero-container max-width-wide">
+          <button onClick={() => navigate(-1)} className="adm-btn-back">← Back</button>
+          <h1 className="adm-hero-main-title">Semester Term Management</h1>
+          <p className="adm-hero-subtitle">Configure institutional academic calendars, partition calendar tracks, and regulate active sessions.</p>
         </div>
       </div>
 
-      <div className="container" style={{ maxWidth: '1200px', margin: '-50px auto 0', padding: '0 20px' }}>
+      {/* ── CORE OPERATIONS SELECTION DECK ── */}
+      <div className="adm-content-workspace max-width-wide">
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '30px' }}>
+        {systemAlert.text && (
+          <div className={`auth-alert ${systemAlert.type === 'error' ? 'error' : 'success'} ms-spaced-banner`}>
+            {systemAlert.text}
+          </div>
+        )}
+
+        <div className="ms-split-layout-grid-row-2">
             
-            {/* 2. CREATE FORM CARD */}
-            <div className="card" style={{ padding: '30px', height: 'fit-content', background: 'white', borderTop: '5px solid var(--primary)' }}>
-                <div style={{ marginBottom: '25px', borderBottom: '1px solid #e2e8f0', paddingBottom: '15px' }}>
-                    <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Create New Semester</h3>
-                    <p style={{ margin: '5px 0 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Define a new academic term.</p>
+            {/* ── LEFT HAND SIDE: COMPILING FORM CARD ── */}
+            <div className="card ms-compiler-card-panel">
+              <div className="ms-card-inner-header-strip">
+                <h3 className="ms-card-panel-title">Initialize New Semester</h3>
+                <p className="ms-card-panel-subtitle">Define constraint operational bounds for a new academic year.</p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="ms-form-stack">
+                <div className="ms-form-inline-split-grid-row">
+                  <div className="auth-form-group">
+                    <label className="adm-input-label">Term Designation</label>
+                    <select 
+                      value={form.name} 
+                      onChange={e => setForm({...form, name: e.target.value})} 
+                      className="rp-input-field select-cursor-pointer"
+                    >
+                      <option>Fall</option>
+                      <option>Spring</option>
+                      <option>Summer</option>
+                      <option>Winter</option>
+                    </select>
+                  </div>
+                  <div className="auth-form-group">
+                    <label className="adm-input-label">Academic Year</label>
+                    <input 
+                      placeholder="e.g., 2026" 
+                      value={form.academic_year} 
+                      onChange={e => setForm({...form, academic_year: e.target.value})} 
+                      className="rp-input-field"
+                      required 
+                    />
+                  </div>
                 </div>
 
-                <form onSubmit={handleSubmit}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>Term Name</label>
-                            <select 
-                                value={form.name} 
-                                onChange={e => setForm({...form, name: e.target.value})} 
-                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                            >
-                                <option>Fall</option>
-                                <option>Spring</option>
-                                <option>Summer</option>
-                                <option>Winter</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>Year</label>
-                            <input 
-                                placeholder="e.g. 2025" 
-                                value={form.academic_year} 
-                                onChange={e => setForm({...form, academic_year: e.target.value})} 
-                                required 
-                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                            />
-                        </div>
-                    </div>
-
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>Start Date</label>
-                        <input 
-                            type="date" 
-                            value={form.start_date} 
-                            onChange={e => setForm({...form, start_date: e.target.value})} 
-                            required 
-                            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                        />
-                    </div>
-
-                    <div style={{ marginBottom: '25px' }}>
-                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>End Date</label>
-                        <input 
-                            type="date" 
-                            value={form.end_date} 
-                            onChange={e => setForm({...form, end_date: e.target.value})} 
-                            required 
-                            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                        />
-                    </div>
-
-                    <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px' }}>
-                        + Add Semester
-                    </button>
-                </form>
-            </div>
-
-            {/* 3. EXISTING SEMESTERS LIST */}
-            <div className="card" style={{ padding: '0', overflow: 'hidden', background: 'white', borderTop: '5px solid var(--secondary)' }}>
-                <div style={{ padding: '25px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                    <h3 style={{ margin: 0, color: 'var(--text-main)' }}>Existing Semesters</h3>
+                <div className="auth-form-group">
+                  <label className="adm-input-label">Syllabus Commencement Start Date</label>
+                  <input 
+                    type="date" 
+                    value={form.start_date} 
+                    onChange={e => setForm({...form, start_date: e.target.value})} 
+                    className="rp-input-field font-family-inherit-override"
+                    required 
+                  />
                 </div>
 
-                {loading ? (
-                    <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>
-                ) : semesters.length === 0 ? (
-                    <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>No semesters found.</div>
-                ) : (
-                    <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
-                        {semesters.map(s => (
-                            <div key={s.id} style={{ 
-                                display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-                                padding: '20px 25px', borderBottom: '1px solid #f1f5f9',
-                                background: s.is_active ? '#f0fdf4' : 'white' 
-                            }}>
-                                <div>
-                                    <h4 style={{ margin: '0 0 5px 0', fontSize: '1.1rem', color: s.is_active ? '#166534' : '#1e293b' }}>
-                                        {s.name} {s.academic_year}
-                                        {s.is_active && <span style={{ marginLeft: '10px', fontSize: '0.7rem', background: '#22c55e', color: 'white', padding: '2px 8px', borderRadius: '10px', verticalAlign: 'middle' }}>ACTIVE</span>}
-                                    </h4>
-                                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
-                                        {new Date(s.start_date).toLocaleDateString()} — {new Date(s.end_date).toLocaleDateString()}
-                                    </p>
-                                </div>
-                                
-                                <button 
-                                    onClick={() => handleToggle(s.id)} 
-                                    style={{
-                                        padding: '8px 16px',
-                                        borderRadius: '6px',
-                                        fontSize: '0.85rem',
-                                        fontWeight: '600',
-                                        cursor: 'pointer',
-                                        border: s.is_active ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
-                                        background: s.is_active ? 'white' : '#f1f5f9',
-                                        color: s.is_active ? '#166534' : '#64748b'
-                                    }}
-                                >
-                                    {s.is_active ? 'Deactivate' : 'Activate'}
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                <div className="auth-form-group">
+                  <label className="adm-input-label">Term Conclusion End Date</label>
+                  <input 
+                    type="date" 
+                    value={form.end_date} 
+                    onChange={e => setForm({...form, end_date: e.target.value})} 
+                    className="rp-input-field font-family-inherit-override"
+                    required 
+                  />
+                </div>
+
+                <button type="submit" className="btn-primary ms-btn-submit-form">
+                  + Add New Calendar Semester
+                </button>
+              </form>
             </div>
 
-        </div>
+            {/* ── RIGHT HAND SIDE: EXISTING SEMESTERS LIST DECK ── */}
+            <div className="card ms-list-catalog-display-panel">
+              <div className="qd-panel-inner-header-banner">
+                <h3 className="qd-visual-panel-title remove-margin-bottom">Existing Academic Sessions</h3>
+              </div>
+
+              {loading ? (
+                <div className="ms-loader-placeholder-text">Syncing active platform calendar rosters...</div>
+              ) : semesters.length === 0 ? (
+                <div className="sa-empty-workspace-state width-fill-box">
+                  <div className="sa-empty-art-logo">🗓️</div>
+                  <p className="sa-empty-state-subtitle">No historical academic calendar semesters found in data matrix parameters.</p>
+                </div>
+              ) : (
+                <div className="ms-scrollable-list-viewport-stack">
+                  {semesters.map(s => (
+                    <div key={s.id} className={`ms-semester-listing-row-node ${s.is_active ? 'ms-listing-state-active' : ''}`}>
+                      <div className="ms-listing-text-block">
+                        <h4 className="ms-listing-title-heading">
+                          {s.name} Session {s.academic_year}
+                          {s.is_active && <span className="ms-active-status-badge">ACTIVE BOUND</span>}
+                        </h4>
+                        <p className="ms-listing-duration-timestamp">
+                          📅 Boundaries: {new Date(s.start_date).toLocaleDateString()} — {new Date(s.end_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      
+                      <button 
+                        onClick={() => handleToggle(s.id)} 
+                        className={`ms-btn-status-toggle-trigger ${s.is_active ? 'btn-active-toggle' : 'btn-inactive-toggle'}`}
+                      >
+                        {s.is_active ? 'Deactivate' : 'Activate Space'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+         </div>
       </div>
     </div>
   );

@@ -16,7 +16,9 @@ const Signup = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    
     if (!formData.email.trim()) return setError('Email address is required.');
+    
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email.trim())) return setError('Please enter a valid email address.');
 
@@ -26,55 +28,75 @@ const Signup = () => {
       setSignedUpEmail(formData.email);
       setSignedUp(true);
     } catch (err) {
-      setError(err.response?.data?.error || 'Signup failed. Please try again.');
-    } finally { setLoading(false); }
+      setError(err.response?.data?.error || 'Signup sequence failed. Please crosscheck registration credentials.');
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (
     <div className="auth-page-wrapper">
       <div className="auth-card-stack">
         
-        {/* Header */}
+        {/* Header Block Banner */}
         <div className="auth-header">
           <h1>Create your account</h1>
           <p>Join AI Teaching Assistant and start learning smarter</p>
         </div>
 
-        {/* Card */}
+        {/* Dynamic State Enrollment Console */}
         <div className="auth-card">
           {signedUp ? (
-            <div style={{ textAlign: 'center', padding: '10px 0' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📬</div>
-              <h2 style={{ color: 'var(--text-main)', fontSize: '1.3rem', fontWeight: '800', marginBottom: '10px' }}>Verify your email</h2>
-              <div className="auth-alert warning" style={{ backgroundColor: '#f0fdf4', color: '#166534', borderColor: '#bbf7d0' }}>
+            <div className="auth-success-state-container">
+              <div className="auth-success-icon">📬</div>
+              <h2 className="auth-success-title">Verify your email</h2>
+              <div className="auth-alert success">
                 A verification link has been sent to <strong>{signedUpEmail}</strong>.<br />
-                Click the link in your inbox to activate your account.
+                Click the link inside your inbox to activate your platform profile access.
               </div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px' }}>Didn't receive it? Check your spam folder.</p>
-              <Link to="/login" className="btn-primary" style={{ width: '100%', textDecoration: 'none', textAlign: 'center' }}>
+              <p className="auth-success-disclaimer">Didn't receive it? Make sure to double-check your spam filters.</p>
+              <Link to="/login" className="btn-primary auth-submit-btn text-center-link">
                 Go to Login →
               </Link>
             </div>
           ) : (
             <>
-              {error && <div className="auth-alert error">⚠ {error}</div>}
+              {error && <div className="auth-alert error">⚠️ {error}</div>}
 
               <form onSubmit={handleSubmit}>
-                {/* Responsive Row: Name + University ID */}
+                {/* Responsive Dual Column Roster Coordinates */}
                 <div className="auth-row-grid">
                   <div className="auth-form-group">
                     <label>Full Name</label>
-                    <input type="text" name="username" placeholder="John Doe" required onChange={handleChange} />
+                    <input 
+                      type="text" 
+                      name="username" 
+                      placeholder="John Doe" 
+                      required 
+                      onChange={handleChange} 
+                    />
                   </div>
                   <div className="auth-form-group">
                     <label>University ID</label>
-                    <input type="text" name="university_id" placeholder="BAI-22F-001" onChange={handleChange} />
+                    <input 
+                      type="text" 
+                      name="university_id" 
+                      placeholder="BAI-22F-001" 
+                      onChange={handleChange} 
+                    />
                   </div>
                 </div>
 
                 <div className="auth-form-group">
                   <label>Email Address</label>
-                  <input type="email" name="email" placeholder="student@university.edu" required onChange={handleChange} />
+                  <input 
+                    type="email" 
+                    name="email" 
+                    placeholder="student@university.edu" 
+                    required 
+                    onChange={handleChange} 
+                    
+                  />
                 </div>
 
                 <div className="auth-form-group">
@@ -87,33 +109,35 @@ const Signup = () => {
                       required 
                       onChange={handleChange} 
                     />
+                    {/* ✅ FIX: Fixed the visibility toggler state parameters */}
                     <button 
                       type="button" 
                       className="password-toggle-icon"
                       onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Hide character entries" : "Show plaintext entries"}
                     >
-                      {showPassword ? "" : ""}
+                      {showPassword ? "🙈" : "👁️"}
                     </button>
                   </div>
                 </div>
 
-                <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%' }}>
+                <button type="submit" disabled={loading} className="btn-primary auth-submit-btn">
                   {loading ? 'Creating account...' : 'Create Account'}
                 </button>
               </form>
 
-              <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '1.25rem' }}>
+              <p className="auth-legal-fineprint">
                 By signing up, you agree to our{' '}
-                <span style={{ color: 'var(--primary)', fontWeight: '600', cursor: 'pointer' }}>Terms</span> and{' '}
-                <span style={{ color: 'var(--primary)', fontWeight: '600', cursor: 'pointer' }}>Privacy Policy</span>.
+                <span className="auth-legal-link">Terms</span> and{' '}
+                <span className="auth-legal-link">Privacy Policy</span>.
               </p>
             </>
           )}
         </div>
 
-        <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '1.5rem' }}>
+        <p className="auth-footer-prompt">
           Already have an account?{' '}
-          <Link to="/login" style={{ color: 'var(--primary)', fontWeight: '700', textDecoration: 'none' }}>Sign in</Link>
+          <Link to="/login">Sign in</Link>
         </p>
       </div>
     </div>

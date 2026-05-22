@@ -13,17 +13,27 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(''); setNotVerified(false); setLoading(true);
+    setError(''); 
+    setNotVerified(false); 
+    setLoading(true);
+    
     try {
       const user = await loginUser(formData.email, formData.password);
-      if (user.role === 'admin') navigate('/admin');
-      else if (user.role === 'teacher') navigate('/teacher');
+      
+      // ✅ SAFETY FIX: Graceful navigation routes that shield against response drops
+      if (user?.role === 'admin') navigate('/admin');
+      else if (user?.role === 'teacher') navigate('/teacher');
       else navigate('/student');
     } catch (err) {
       const errData = err.response?.data;
-      if (errData?.code === 'EMAIL_NOT_VERIFIED') setNotVerified(true);
-      else setError(errData?.error || 'Invalid credentials.');
-    } finally { setLoading(false); }
+      if (errData?.code === 'EMAIL_NOT_VERIFIED') {
+        setNotVerified(true);
+      } else {
+        setError(errData?.error || 'Invalid credentials. Please verify your data entry.');
+      }
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (
@@ -35,7 +45,7 @@ const Login = () => {
         </div>
 
         <div className="auth-card">
-          {error && <div className="auth-alert error">⚠ {error}</div>}
+          {error && <div className="auth-alert error">⚠️ {error}</div>}
           
           {notVerified && (
             <div className="auth-alert warning">
@@ -69,23 +79,26 @@ const Login = () => {
                   onChange={e => setFormData({ ...formData, password: e.target.value })}
                   required
                 />
+                {/* ✅ VISUAL FIX: Restructured the hidden element state to remain fully visible */}
                 <button 
                   type="button" 
                   className="password-toggle-icon"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? "👁️" : ""}
+                  {showPassword ? "🙈" : "👁️"}
                 </button>
               </div>
             </div>
 
-            <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={loading}>
+            {/* ✅ LAYOUT OPIUM: Removed messy structural hardcoded widths */}
+            <button type="submit" className="btn-primary auth-submit-btn" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
-          <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-            Don't have an account? <Link to="/signup" style={{ color: 'var(--primary)', fontWeight: '700', textDecoration: 'none' }}>Create one</Link>
+          <p className="auth-footer-prompt">
+            Don't have an account? <Link to="/signup">Create one</Link>
           </p>
         </div>
       </div>

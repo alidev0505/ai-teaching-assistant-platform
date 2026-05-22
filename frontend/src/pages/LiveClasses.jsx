@@ -9,259 +9,199 @@ const LiveClasses = () => {
   
   const [formData, setFormData] = useState({ course_id: '', title: '', start_time: '', meeting_link: '' });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   useEffect(() => {
     loadData();
   }, []);
 
-  // inside loadData
   const loadData = async () => {
     try {
-        setLoading(true);
-        const sessRes = await getAllLiveSessions();
-        // ENSURE the backend is returning sessions for ENROLLED courses only
-        setSessions(sessRes.data.sessions || []); 
-        
-        // If a teacher, we need the list of courses they teach to populate the dropdown
-        if (user.role === 'teacher') {
-            const courseRes = await getCourses();
-            setCourses(courseRes.data.courses || []);
-        }
+      setLoading(true);
+      setError('');
+      const sessRes = await getAllLiveSessions();
+      setSessions(sessRes?.data?.sessions || []); 
+      
+      if (user?.role === 'teacher') {
+        const courseRes = await getCourses();
+        setCourses(courseRes?.data?.courses || []);
+      }
     } catch (err) { 
-        console.error("Live Class Load Error:", err); 
+      console.error("Live Class synchronous load error:", err); 
+      setError("Failed to synchronize active lecture schedules from database.");
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
+  };
 
   const handleSchedule = async (e) => {
     e.preventDefault();
+    setError('');
+    setSuccess('');
+    
     try {
       await createLiveSession(formData);
-      alert('Class Scheduled & Students Notified!');
+      setSuccess('🚀 Virtual classroom scheduled successfully and student feeds updated!');
       setFormData({ course_id: '', title: '', start_time: '', meeting_link: '' });
       loadData();
     } catch (err) { 
-      alert('Error scheduling class. Please try again.'); 
+      setError('Scheduling Failure: Stalled broadcasting classroom configuration parameters.'); 
     }
   };
 
   const handleDelete = async (sessionId) => {
     if (!window.confirm("Are you sure you want to cancel this live session?")) return;
+    setError('');
+    setSuccess('');
+    
     try {
         await deleteLiveSession(sessionId);
         setSessions(sessions.filter(s => s.id !== sessionId));
+        setSuccess('Live session successfully de-indexed and removed from schedules.');
     } catch (err) {
         console.error(err);
-        alert("Failed to delete session.");
+        setError("Failed to remove active session reference parameters from the ledger.");
     }
   };
 
   return (
-    <div className="live-page-wrapper">
+    <div className="lv-page-wrapper">
 
-      {/* 1. HERO HEADER */}
-      <header className="live-hero">
-        <div className="hero-overlay" />
-        <div className="hero-container">
-          <h1>Live Classroom</h1>
-          <p>Connect with your students in real-time virtual sessions.</p>
+      {/* ── 1. HERO BANNER HEADER CONSOLE ── */}
+      <header className="lv-hero-banner">
+        <div className="lv-grid-mesh" />
+        <div className="lv-hero-container">
+          <h1 className="lv-hero-main-title">Live Virtual Classrooms</h1>
+          <p className="lv-hero-subtitle">Coordinate and link with your cohort using high-fidelity real-time streaming modules.</p>
         </div>
       </header>
       
-      <div className="live-content-container">
+      <div className="lv-content-workspace">
 
-        {/* 2. TEACHER SCHEDULING CARD */}
-        {user.role === 'teacher' && (
-          <div className="schedule-card">
-            <div className="card-header-flex">
-              <div className="icon-bg">📅</div>
-              <div>
-                <h3>Schedule Session</h3>
-                <p>Notify enrolled students instantly.</p>
+        {error && <div className="auth-alert error lv-spaced-banner">⚠️ {error}</div>}
+        {success && <div className="auth-alert success lv-spaced-banner">✅ {success}</div>}
+
+        {/* ── 2. TEACHER INSTRUCTOR SCHEDULING CARD CORE ── */}
+        {user?.role === 'teacher' && (
+          <div className="lv-schedule-form-card">
+            <div className="lv-card-header-flex-row">
+              <div className="lv-card-icon-avatar">📅</div>
+              <div className="lv-card-title-header-block">
+                <h3 className="lv-card-inner-title">Schedule Live Workspace</h3>
+                <p className="lv-card-inner-subtitle">Distribute push-notifications across student endpoints instantaneously.</p>
               </div>
             </div>
 
-            <form onSubmit={handleSchedule} className="schedule-form">
-              <div className="full-width">
-                <label>Select Course</label>
+            <form onSubmit={handleSchedule} className="lv-grid-form-layout">
+              <div className="lv-form-group-full-width">
+                <label className="lv-input-form-label">Target Curriculum Course</label>
                 <select 
                   onChange={e => setFormData({...formData, course_id: e.target.value})}
                   value={formData.course_id}
+                  className="rp-input-field select-cursor-pointer"
                   required
                 >
-                  <option value="">-- Choose Course --</option>
-                  {courses.map(c => <option key={c.id} value={c.id}>{c.name} ({c.class_code})</option>)}
+                  <option value="">-- Select Active Syllabus Channel --</option>
+                  {courses.map(c => <option key={c.id} value={c.id}>{c.name} ({c.class_code || c.code})</option>)}
                 </select>
               </div>
 
-              <div>
-                <label>Class Topic</label>
+              <div className="auth-form-group">
+                <label className="lv-input-form-label">Class Lecture Topic</label>
                 <input 
-                  placeholder="e.g. Chapter 4: Neural Networks" 
+                  placeholder="e.g., Chapter 4: RAG Optimizations" 
                   onChange={e => setFormData({...formData, title: e.target.value})}
                   value={formData.title}
+                  className="rp-input-field"
                   required
                 />
               </div>
 
-              <div>
-                <label>Meeting Link (Optional)</label>
+              <div className="auth-form-group">
+                <label className="lv-input-form-label">Streaming Meeting URL Bridge</label>
                 <input 
                   type="url"
-                  placeholder="Zoom/Meet Link" 
+                  placeholder="e.g., Zoom, Microsoft Teams, or Google Meet link" 
                   onChange={e => setFormData({...formData, meeting_link: e.target.value})}
                   value={formData.meeting_link}
+                  className="rp-input-field"
                 />
               </div>
 
-              <div className="full-width-mobile">
-                <label>Date & Time</label>
+              <div className="lv-form-group-mobile-full-width">
+                <label className="lv-input-form-label">Session Initialization Date & Time</label>
                 <input 
                   type="datetime-local" 
                   onChange={e => setFormData({...formData, start_time: e.target.value})}
                   value={formData.start_time}
+                  className="rp-input-field font-family-inherit-override"
                   required
                 />
               </div>
 
-              <div className="full-width">
-                <button type="submit" className="schedule-btn">
-                  Schedule & Notify Students 🚀
+              <div className="lv-form-group-full-width padding-top-micro">
+                <button type="submit" className="btn-primary lv-btn-schedule-submit">
+                  Schedule Session & Alert Cohort Roster 🚀
                 </button>
               </div>
             </form>
           </div>
         )}
 
-        {/* 3. UPCOMING SESSIONS LIST */}
-        <h3 className="list-title">Upcoming Sessions</h3>
+        {/* ── 3. UPCOMING LECTURES ROW SUMMARY ── */}
+        <h3 className="lv-section-main-heading">Upcoming Scheduled Sessions</h3>
 
         {loading ? (
-            <p className="loading-text">Loading schedule...</p>
+            <p className="lv-loading-placeholder-text">Syncing virtual calendar matrix rosters...</p>
         ) : sessions.length === 0 ? (
-            <div className="empty-state">
-                <h3>No live classes scheduled.</h3>
-                {user.role === 'teacher' && <p>Use the form above to schedule your first class.</p>}
+            <div className="lv-empty-workspace-state-box">
+                <div className="lv-empty-box-art">📭</div>
+                <h3 className="lv-empty-box-title">No virtual classes listed</h3>
+                {user?.role === 'teacher' && <p className="lv-empty-box-subtitle">Utilize the scheduling matrix engine console card above to initialize your first live channel lecture.</p>}
             </div>
         ) : (
-            <div className="sessions-grid">
+            <div className="lv-sessions-cards-grid-matrix">
               {sessions.map(s => (
-              <div key={s.id} className="session-card">
-                <div className="session-top">
-                  <span className="live-pill">
-                    <span className="dot"></span>
-                    LIVE SESSION
+              <div key={s.id} className="sa-attendance-card lv-custom-session-card">
+                <div className="sa-card-header-row margin-bottom-small">
+                  <span className="sa-class-code-pill lv-live-status-pill-indicator">
+                    <span className="lv-blinking-status-dot"></span>
+                    LIVE STREAM CHANNEL
                   </span>
-                  {/* CHANGE: s.class_code -> s.course_code */}
-                  <span className="course-tag">{s.course_code || 'Class'}</span>
+                  <span className="rt-badge rt-badge-quiz">{s.course_code || 'Syllabus Code'}</span>
                 </div>
 
-                    <h3 className="session-title">{s.title}</h3>
-                    
-                    <div className="session-details">
-                        <p className="course-name"><strong>Subject:</strong> {s.course_name}</p>
-                        <p className="session-date">
-                            📅 {new Date(s.start_time).toLocaleString(undefined, { 
-                                weekday: 'short', 
-                                month: 'short', 
-                                day: 'numeric', 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                            })}
-                        </p>
-                    </div>
-                    
-                    <div className="session-actions">
-                        <a href={s.meeting_link} target="_blank" rel="noreferrer" className="join-btn">
-                            Enter Classroom →
-                        </a>
-                        {user.role === 'teacher' && (
-                            <button onClick={() => handleDelete(s.id)} className="cancel-btn">
-                                Cancel
-                            </button>
-                        )}
-                    </div>
+                <h3 className="sa-course-card-title lv-session-header-title">{s.title}</h3>
+                
+                <div className="lv-itemized-metadata-display-box">
+                    <p className="lv-metadata-paragraph-text"><strong>Syllabus Channel:</strong> {s.course_name}</p>
+                    <p className="lv-metadata-paragraph-text text-highlight-blue">
+                        📅 {new Date(s.start_time).toLocaleString(undefined, { 
+                            weekday: 'short', 
+                            month: 'short', 
+                            day: 'numeric', 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        })}
+                    </p>
                 </div>
-            ))}
+                
+                <div className="sa-mini-split-stats-grid padding-top-small">
+                    <a href={s.meeting_link} target="_blank" rel="noreferrer" className="lc-btn-join text-decoration-none-override">
+                        Enter Live Space →
+                    </a>
+                    {user?.role === 'teacher' && (
+                        <button onClick={() => handleDelete(s.id)} className="lc-btn-cancel">
+                            Cancel
+                        </button>
+                    )}
+                </div>
+              </div>
+              ))}
             </div>
         )}
       </div>
-
-      <style>{`
-        .live-page-wrapper { background: #f8fafc; min-height: 100vh; padding-bottom: 60px; font-family: 'Inter', sans-serif; }
-        
-        .live-hero { 
-          background: linear-gradient(150deg, #0c1445 0%, #1e3a8a 45%, #0284c7 100%); 
-          padding: 40px 0 100px; position: relative; overflow: hidden; 
-        }
-          .course-tag {
-          background: #f1f5f9;
-          color: #475569;
-          font-size: 0.7rem;
-          font-weight: 800;
-          padding: 4px 8px;
-          border-radius: 4px;
-          text-transform: uppercase;
-      }
-
-      .session-details {
-          margin-bottom: 20px;
-          display: flex;
-          flex-direction: column;
-          gap: 5px;
-      }
-
-      .session-date {
-          font-size: 0.85rem !important;
-          color: #2563eb !important; /* Make the time blue so it stands out */
-          font-weight: 700 !important;
-      }
-        .hero-overlay { position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 28px 28px; }
-        .hero-container { max-width: 1000px; margin: 0 auto; padding: 0 24px; position: relative; }
-        .hero-container h1 { color: white; font-size: clamp(1.8rem, 5vw, 2.5rem); font-weight: 900; margin: 0; }
-        .hero-container p { color: rgba(255,255,255,0.8); margin-top: 8px; font-size: 1rem; }
-
-        .live-content-container { max-width: 1000px; margin: -50px auto 0; padding: 0 20px; position: relative; z-index: 10; }
-
-        .schedule-card { background: white; padding: 30px; border-radius: 16px; border-left: 6px solid #2563eb; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
-        .card-header-flex { display: flex; align-items: center; gap: 15px; margin-bottom: 25px; }
-        .icon-bg { background: #eff6ff; padding: 12px; border-radius: 10px; font-size: 1.5rem; }
-        
-        .schedule-form { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .schedule-form .full-width { grid-column: 1 / -1; }
-        
-        label { display: block; margin-bottom: 8px; font-weight: 700; fontSize: 0.85rem; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; }
-        input, select { width: 100%; padding: 12px 15px; border-radius: 8px; border: 1.5px solid #e2e8f0; background: #f8fafc; color: #0f172a; font-family: inherit; outline: none; transition: 0.2s; }
-        input:focus, select:focus { border-color: #2563eb; background: #fff; }
-
-        .schedule-btn { width: 100%; padding: 14px; background: #1d4ed8; color: white; border: none; border-radius: 8px; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.2); font-size: 1rem; }
-
-        .list-title { border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin: 40px 0 25px; color: #0f172a; font-weight: 800; }
-        .sessions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr)); gap: 20px; }
-
-        .session-card { padding: 24px; background: white; border-radius: 16px; border: 1px solid #e2e8f0; border-top: 5px solid #ef4444; display: flex; flex-direction: column; transition: 0.3s; }
-        .session-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .live-pill { background: #fef2f2; color: #dc2626; font-weight: 800; font-size: 0.75rem; padding: 5px 10px; border-radius: 6px; display: flex; align-items: center; gap: 6px; }
-        .dot { width: 6px; height: 6px; background: #dc2626; border-radius: 50%; }
-        .session-date { font-size: 0.85rem; color: #64748b; font-weight: 600; }
-        .session-title { font-size: 1.15rem; margin: 0 0 10px; color: #0f172a; font-weight: 800; }
-        .course-name { color: #64748b; font-size: 0.9rem; margin-bottom: 20px; }
-        
-        .session-actions { display: flex; gap: 10px; margin-top: auto; }
-        .join-btn { flex: 2; text-align: center; background: #ef4444; color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; }
-        .cancel-btn { flex: 1; background: #f8fafc; color: #dc2626; border: 1.5px solid #e2e8f0; border-radius: 8px; font-weight: 600; cursor: pointer; }
-
-        .empty-state { padding: 60px 20px; text-align: center; background: white; border-radius: 16px; border: 2px dashed #cbd5e1; color: #64748b; }
-        .loading-text { text-align: center; padding: 40px; color: #64748b; }
-
-        @media (max-width: 650px) {
-          .schedule-form { grid-template-columns: 1fr; }
-          .live-hero { text-align: center; padding-bottom: 80px; }
-          .live-content-container { margin-top: -40px; }
-          .session-card { padding: 20px; }
-        }
-      `}</style>
     </div>
   );
 };

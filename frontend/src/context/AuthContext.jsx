@@ -7,7 +7,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Check login status on load
+  // Check login status on application mount
   useEffect(() => {
     const checkLoggedIn = async () => {
       const token = localStorage.getItem('token');
@@ -18,21 +18,23 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        // Attempt to fetch user details using the stored token
+        // Attempt to fetch user details using the stored token validation route
         const res = await api.get('/auth/me');
         
-        // Handle potential response structure variations
-        const userData = res.data.user || res.data;
-        setUser(userData);
+        // Handle potential response structure variations flexibly
+        const userData = res?.data?.user || res?.data;
+        if (userData) {
+          setUser(userData);
+        } else {
+          throw new Error("Invalid user authentication object signature returned.");
+        }
         
       } catch (err) {
-        // If 401 (Unauthorized) or 403 (Forbidden), clear the session
-        console.warn("Session expired or invalid token. Logging out.");
+        console.warn("Session expired or invalid token structure. Purging local store.");
         localStorage.removeItem('token');
-        localStorage.removeItem('user'); // Clean up any stale user data
+        localStorage.removeItem('user'); 
         setUser(null);
       } finally {
-        // Always stop loading, whether success or fail
         setLoading(false);
       }
     };
@@ -43,13 +45,17 @@ export const AuthProvider = ({ children }) => {
   const loginUser = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
     
-    if (res.data.access_token) {
+    if (res?.data?.access_token) {
         localStorage.setItem('token', res.data.access_token);
-        // If your backend sends the user object in login response, set it here
-        const userData = res.data.user;
+        
+        // Dynamic fallback fallback if user object isn't fully nested inside response
+        const userData = res.data.user || { email, role: res.data.role || 'student' };
+        
+        localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
         return userData;
     }
+    throw new Error("Authentication failed: Missing access token token vector mapping.");
   };
 
   const signupUser = async (userData) => {
@@ -60,14 +66,18 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
-    window.location.href = '/login'; // Hard redirect to clear any app state
+    window.location.href = '/login'; // Hard reset to purge un-garbage-collected states cleanly
   };
 
+  // ✅ UI OPTIMIZATION: Swapped hardcoded loading framework wrapper for clean CSS layout hooking
   if (loading) {
     return (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#64748b' }}>
-            Loading Session...
+      <div className="ac-loading-overlay">
+        <div className="ac-loading-spinner-box">
+          <div className="ac-spinner"></div>
+          <span className="ac-loading-text">Verifying User Session...</span>
         </div>
+      </div>
     );
   }
 

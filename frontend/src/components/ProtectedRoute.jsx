@@ -7,39 +7,24 @@ const ProtectedRoute = ({ children, role }) => {
 
   if (loading) {
     return (
-      <div style={{ 
-        height: '100vh', 
-        display: 'flex', 
-        flexDirection: 'column',
-        justifyContent: 'center', 
-        alignItems: 'center',
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-        color: '#ffffff',
-        fontFamily: "'Segoe UI', Roboto, sans-serif"
-      }}>
-        <div className="ai-spinner" style={{
-          width: '40px',
-          height: '40px',
-          border: '4px solid rgba(255,255,255,0.1)',
-          borderTop: '4px solid #38bdf8',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-          marginBottom: '15px'
-        }}></div>
-        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+      <div className="pr-loading-fullscreen-wrapper">
+        <div className="pr-loading-spinner-box">
+          <div className="ac-spinner" />
+          <p className="pr-loading-text-string">Authenticating User Identity...</p>
+        </div>
       </div>
     );
   }
 
-  
+  // Redirect to login if not authenticated
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
+  // Redirect if user attempts to access a role-restricted route
   if (role && user.role !== role) {
-    if (user.role === 'admin') return <Navigate to="/admin" replace />;
-    if (user.role === 'teacher') return <Navigate to="/teacher" replace />;
-    return <Navigate to="/student" replace />;
+    const target = user.role === 'admin' ? '/admin' : user.role === 'teacher' ? '/teacher' : '/student';
+    return <Navigate to={target} replace />;
   }
 
   return children;

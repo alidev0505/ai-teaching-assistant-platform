@@ -8,56 +8,82 @@ const AdminFeedback = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchFeedback = async () => {
       try {
         const res = await getAllFeedback();
-        setReviews(res.data.reviews || []);
-      } catch (err) { console.error(err); } 
-      finally { setLoading(false); }
+        setReviews(res?.data?.reviews || []);
+      } catch (err) { 
+        console.error("Failed to load student course feedback telemetry logs:", err); 
+      } finally { 
+        setLoading(false); 
+      }
     };
-    fetch();
+    fetchFeedback();
   }, []);
 
   return (
-    <div style={{ padding: '40px', background: '#f8fafc', minHeight: '100vh' }}>
-      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+    <div className="af-page-wrapper">
+      <div className="af-content-container">
         
-        {/* HEADER */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-            <div>
-                <h1 style={{ margin: 0, color: '#1e293b' }}>📢 Student Feedback</h1>
-                <p style={{ margin: 0, color: '#64748b' }}>Monitoring course quality and satisfaction.</p>
-            </div>
-            <button onClick={() => navigate(-1)} className="btn-secondary">Back to Dashboard</button>
+        {/* ── HEADER NAVIGATION CONSOLE ── */}
+        <div className="af-header-row">
+          <div className="af-header-title-block">
+            <h1 className="af-main-heading-title">📢 Student Course Feedback</h1>
+            <p className="af-main-subtitle-text">Monitoring automated course quality metrics, lecture satisfaction, and evaluations.</p>
+          </div>
+          <button onClick={() => navigate(-1)} className="btn-secondary af-btn-back-dashboard">
+            Back to Dashboard
+          </button>
         </div>
 
-        {loading ? <p>Loading feedback...</p> : reviews.length === 0 ? (
-            <div className="card" style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>No feedback submitted yet.</div>
+        {/* ── DYNAMIC FEED STACK WORKSPACE ── */}
+        {loading ? (
+          <div className="sa-empty-workspace-state">
+            <p className="sa-empty-state-subtitle">Syncing client review datasets...</p>
+          </div>
+        ) : reviews.length === 0 ? (
+          <div className="sa-empty-workspace-state">
+            <div className="sa-empty-art-logo">📭</div>
+            <h3 className="sa-empty-state-title">No Reviews Submitted</h3>
+            <p className="sa-empty-state-subtitle">Course quality feedback sheets will appear here once student submissions are saved.</p>
+          </div>
         ) : (
-            <div style={{ display: 'grid', gap: '20px' }}>
-                {reviews.map(r => (
-                    <div key={r.id} className="card" style={{ padding: '25px', background: 'white', borderRadius: '12px', borderLeft: r.rating < 3 ? '6px solid #ef4444' : '6px solid #10b981', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                            <div>
-                                <h3 style={{ margin: 0, color: '#1e293b', fontSize: '1.2rem' }}>{r.course}</h3>
-                                <div style={{ fontSize: '0.9rem', color: '#64748b' }}>Instructor: <strong style={{ color: '#334155' }}>{r.teacher}</strong></div>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <div style={{ color: '#fbbf24', fontSize: '1.4rem', letterSpacing: '2px' }}>{"★".repeat(r.rating)}<span style={{ color: '#e2e8f0' }}>{"★".repeat(5-r.rating)}</span></div>
-                                <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{r.date}</div>
-                            </div>
-                        </div>
-                        
-                        {r.comment && (
-                            <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '8px', marginTop: '15px', border: '1px solid #e2e8f0' }}>
-                                <span style={{ fontSize: '1.5rem', color: '#cbd5e1', lineHeight: 0, verticalAlign: 'sub' }}>"</span>
-                                <span style={{ fontStyle: 'italic', color: '#334155', margin: '0 5px' }}>{r.comment}</span>
-                                <span style={{ fontSize: '1.5rem', color: '#cbd5e1', lineHeight: 0, verticalAlign: 'sub' }}>"</span>
-                            </div>
-                        )}
+          <div className="af-reviews-cards-stack">
+            {reviews.map(r => {
+              const reviewRating = Number(r?.rating) || 0;
+              const complianceClass = reviewRating < 3 ? 'review-state-critical' : 'review-state-healthy';
+              
+              return (
+                <div key={r.id} className={`card af-review-card ${complianceClass}`}>
+                  <div className="af-card-split-header-row">
+                    <div className="af-course-details-wrapper">
+                      <h3 className="af-course-title-text">{r.course}</h3>
+                      <div className="af-instructor-meta-text">
+                        Instructor Guide: <strong className="af-instructor-name-string">{r.teacher}</strong>
+                      </div>
                     </div>
-                ))}
-            </div>
+                    
+                    <div className="af-rating-timestamp-block">
+                      {/* ✅ REFACTOR: Safe rendering loops prevent string parsing spills */}
+                      <div className="af-stars-numerical-row" aria-label={`Rating: ${reviewRating} out of 5 stars`}>
+                        <span className="af-stars-filled">{"★".repeat(Math.min(Math.max(reviewRating, 0), 5))}</span>
+                        <span className="af-stars-empty">{"★".repeat(Math.min(Math.max(5 - reviewRating, 0), 5))}</span>
+                      </div>
+                      <div className="af-timestamp-log-date">Submitted: {r.date}</div>
+                    </div>
+                  </div>
+                  
+                  {r.comment?.trim() && (
+                    <div className="af-student-comment-panel-box">
+                      <span className="af-quote-marker-prefix">"</span>
+                      <span className="af-comment-body-text">{r.comment}</span>
+                      <span className="af-quote-marker-suffix">"</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

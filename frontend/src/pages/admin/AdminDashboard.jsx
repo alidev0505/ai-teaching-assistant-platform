@@ -9,7 +9,6 @@ import {
 const AdminDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [hoveredCard, setHoveredCard] = useState(null); 
 
   useEffect(() => {
     fetchAnalytics();
@@ -18,192 +17,179 @@ const AdminDashboard = () => {
   const fetchAnalytics = async () => {
     try {
       const res = await getAdminOverview();
-      setData(res.data);
+      setData(res?.data || null);
     } catch (err) { 
-      console.error("Failed to load analytics:", err); 
+      console.error("Failed to load global administrative overview telemetry logs:", err); 
     } finally {
       setLoading(false);
     }
   };
 
-  const getCardStyle = (id, baseStyle) => ({
-    ...baseStyle,
-    transform: hoveredCard === id ? 'translateY(-5px)' : 'translateY(0)',
-    boxShadow: hoveredCard === id ? '0 15px 30px rgba(0,0,0,0.1)' : '0 4px 6px -1px rgba(0,0,0,0.05)',
-    transition: 'all 0.3s ease',
-  });
-
   if (loading) return (
-    <div style={{ padding: '50px', textAlign: 'center', color: '#64748b' }}>
-      <h2>Loading Dashboard...</h2>
+    <div className="adb-splash-container gray-prompt">
+      <h2>Loading Platform Dashboard Telemetry...</h2>
     </div>
   );
 
   if (!data) return (
-    <div style={{ padding: '50px', textAlign: 'center', color: '#ef4444' }}>
-      <h2>Error loading data. Please try again.</h2>
+    <div className="adb-splash-container error-prompt">
+      <h2>System Overhaul Warning: Failed to calculate master dataset fields index.</h2>
     </div>
   );
 
   const roleDistribution = [
-    { name: 'Students', value: Number(data.kpi?.students) || 0 },
-    { name: 'Teachers', value: Number(data.kpi?.teachers) || 0 },
+    { name: 'Students Space', value: Number(data.kpi?.students) || 0 },
+    { name: 'Faculty Instructors', value: Number(data.kpi?.teachers) || 0 },
   ];
   
   const chartData = data.chart && data.chart.length > 0 ? data.chart : [];
   const COLORS = ['#6366f1', '#10b981']; 
 
   return (
-    <div style={{ background: '#f8fafc', minHeight: '100vh', paddingBottom: '40px' }}>
+    <div className="sa-page-wrapper">
       
-      {/* 1. HEADER */}
-      <div style={{ background: '#1e293b', color: 'white', padding: '40px 0 80px 0' }}>
-        <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
-          <h1 style={{ margin: 0, fontSize: 'clamp(1.8rem, 5vw, 2.5rem)', color: 'white' }}>Admin Dashboard</h1>
-          <p style={{ opacity: 0.8, marginTop: '10px' }}>Real-time overview of system performance.</p>
+      {/* ── 1. GLOBAL ADMIN BANNER CONSOLE NAVIGATION ── */}
+      <div className="adm-hero-banner">
+        <div className="adm-grid-mesh" />
+        <div className="adm-hero-container max-width-wide">
+          <h1 className="adm-hero-main-title">Admin Command Console</h1>
+          <p className="adm-hero-subtitle">Real-time status monitor over infrastructure partitions, vector pipelines, and metrics.</p>
         </div>
       </div>
 
-      <div className="container" style={{ maxWidth: '1200px', margin: '-50px auto 0', padding: '0 20px' }}>
+      <div className="adm-content-workspace max-width-wide">
         
-        {/* 2. KPI CARDS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-          <KPICard title="Total Students" value={data.kpi?.students} color="#6366f1" />
-          <KPICard title="Total Teachers" value={data.kpi?.teachers} color="#10b981" />
-          <KPICard title="Active Courses" value={data.kpi?.courses} color="#f59e0b" />
-          <KPICard title="Total Submissions" value={data.kpi?.submissions} color="#ef4444" />
+        {/* ── 2. METRICS SCOREBOARD INDEX ROW ── */}
+        <div className="sa-stats-grid-row adb-spaced-row-margin">
+          <KPICard title="Total Active Students" value={data.kpi?.students} variant="blue" />
+          <KPICard title="Rostered Instructors" value={data.kpi?.teachers} variant="emerald" />
+          <KPICard title="Indexed Syllabus Channels" value={data.kpi?.courses} variant="amber" />
+          <KPICard title="Calculated Submissions" value={data.kpi?.submissions} variant="red" />
         </div>
 
-        {/* 3. CHARTS SECTION */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '25px', marginBottom: '30px' }}>
-          <div className="card" onMouseEnter={() => setHoveredCard('chart-trend')} onMouseLeave={() => setHoveredCard(null)} style={getCardStyle('chart-trend', { padding: '25px', background: 'white', borderRadius: '12px', minWidth: 0 })}>
-            <h3 style={{ margin: '0 0 20px 0', color: '#334155' }}>Activity Trends</h3>
-            <div style={{ width: '100%', height: 300 }}>
-              <ResponsiveContainer width="100%" height={300}>
+        {/* ── 3. VISUAL TELEMETRY SYSTEM GRAPHICS GRID ── */}
+        <div className="ta-charts-main-grid-row-2 adb-spaced-row-margin">
+          
+          {/* Submissions Traffic Progression Graph */}
+          <div className="card adb-panel-card-container">
+            <h3 className="ta-chart-inner-title">📈 System Transmission Activity Trails</h3>
+            <div className="ta-chart-canvas-holder">
+              <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="colorSub" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8}/>
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
                       <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={11} />
+                  <YAxis axisLine={false} tickLine={false} stroke="#94a3b8" fontSize={11} />
                   <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                  <Area type="monotone" dataKey="submissions" stroke="#6366f1" fillOpacity={1} fill="url(#colorSub)" strokeWidth={3} />
+                  <Area type="monotone" dataKey="submissions" stroke="#6366f1" fillOpacity={1} fill="url(#colorSub)" strokeWidth={3} name="Submissions Processed" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="card" onMouseEnter={() => setHoveredCard('chart-dist')} onMouseLeave={() => setHoveredCard(null)} style={getCardStyle('chart-dist', { padding: '25px', background: 'white', borderRadius: '12px', minWidth: 0 })}>
-            <h3 style={{ margin: '0 0 20px 0', color: '#334155' }}>User Roles</h3>
-            <div style={{ width: '100%', height: 300 }}>
-              <ResponsiveContainer width="100%" height={300}>
+          {/* User Allocations Distribution Ring */}
+          <div className="card adb-panel-card-container">
+            <h3 className="ta-chart-inner-title">📊 Platform Account Distribution Matrix</h3>
+            <div className="ta-chart-canvas-holder">
+              <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={roleDistribution} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                  <Pie data={roleDistribution} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
                     {roleDistribution.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip />
-                  <Legend verticalAlign="bottom" height={36}/>
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
           </div>
         </div>
 
-        {/* 4. RECENT ACTIVITY */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '25px', marginBottom: '40px' }}>
-          <div className="card" onMouseEnter={() => setHoveredCard('feed-users')} onMouseLeave={() => setHoveredCard(null)} style={getCardStyle('feed-users', { padding: '25px', background: 'white', minWidth: 0, borderRadius: '12px' })}>
-            <h3 style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '15px', marginBottom: '15px', color: '#334155' }}>Newest Users</h3>
-            {data.activity?.new_users?.map((u, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', paddingBottom: '12px', borderBottom: i < 4 ? '1px dashed #f1f5f9' : 'none' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '15px', color: '#3b82f6', fontWeight: 'bold' }}>{u.username?.[0]?.toUpperCase() || 'U'}</div>
-                <div><div style={{ fontWeight: 'bold', color: '#1e293b' }}>{u.username}</div><div style={{ fontSize: '0.85rem', color: '#64748b' }}>{u.role} • {u.date}</div></div>
-              </div>
-            ))}
+        {/* ── 4. LOGGED LIVE TRACKING ACTIVITY FLEX LANES ── */}
+        <div className="ta-charts-main-grid-row-2 adb-spaced-row-margin">
+          
+          {/* New Profiles Onboarding Feed */}
+          <div className="card adb-panel-card-container">
+            <h3 className="adb-list-panel-title">Newest Registrations</h3>
+            <div className="adb-live-stream-ledger-column">
+              {data.activity?.new_users?.map((u, i) => (
+                <div key={i} className="adb-stream-item-row">
+                  <div className="adb-avatar-circle-prefix">{u.username?.[0]?.toUpperCase() || 'AI'}</div>
+                  <div className="adb-stream-meta-text-block">
+                    <div className="adb-stream-item-primary-string">{u.username}</div>
+                    <div className="adb-stream-item-secondary-subtext">{u.role?.toUpperCase()} Profile Access • Initialized: {u.date}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="card" onMouseEnter={() => setHoveredCard('feed-subs')} onMouseLeave={() => setHoveredCard(null)} style={getCardStyle('feed-subs', { padding: '25px', background: 'white', minWidth: 0, borderRadius: '12px' })}>
-            <h3 style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '15px', marginBottom: '15px', color: '#334155' }}>Recent Submissions</h3>
-            {(!data.activity?.submissions || data.activity.submissions.length === 0) ? <p style={{color:'#64748b'}}>No recent submissions.</p> : data.activity.submissions.map((s, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', paddingBottom: '12px', borderBottom: i < 4 ? '1px dashed #f1f5f9' : 'none' }}>
-                <div><div style={{ fontWeight: 'bold', color: '#1e293b' }}>{s.assignment}</div><div style={{ fontSize: '0.85rem', color: '#64748b' }}>by {s.student} • {s.date}</div></div>
-              </div>
-            ))}
+
+          {/* Evaluations Processing Feed Queue */}
+          <div className="card adb-panel-card-container">
+            <h3 className="adb-list-panel-title">Recent Submissions Pipeline</h3>
+            <div className="adb-live-stream-ledger-column">
+              {(!data.activity?.submissions || data.activity.submissions.length === 0) ? (
+                <p className="sa-text-muted italic-text padding-top-small">Pipeline clearing statement: No assignments items logged in current validation queues.</p>
+              ) : (
+                data.activity.submissions.map((s, i) => (
+                  <div key={i} className="adb-stream-item-row padd-left-zero">
+                    <div className="adb-stream-meta-text-block">
+                      <div className="adb-stream-item-primary-string text-truncate-span">{s.assignment}</div>
+                      <div className="adb-stream-item-secondary-subtext">Calculated for user: {s.student} • Parsed: {s.date}</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
         
-        {/* 5. MANAGEMENT ACTIONS */}
-        <h2 style={{ fontSize: '1.5rem', color: '#1e293b', marginBottom: '20px', borderLeft: '5px solid #3b82f6', paddingLeft: '15px' }}>
-            Management Console
+        {/* ── 5. SYSTEM SUBSYSTEM COMMAND MODULE DECK ── */}
+        <h2 className="section-header adb-console-section-title">
+           Administrative Infrastructure Console
         </h2>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-            
-            <Link to="/admin/users" className="card" onMouseEnter={() => setHoveredCard('link-users')} onMouseLeave={() => setHoveredCard(null)} style={getCardStyle('link-users', { textDecoration: 'none', padding:'25px', borderRadius: '12px', background: 'white', borderLeft: '4px solid #3b82f6', color: 'inherit' })}>
-                <div><h3 style={{ margin: 0, color:'#1e293b' }}>Users</h3><p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '0.9rem' }}>Roles & Access</p></div>
+        <div className="adb-console-links-grid-matrix">
+            <Link to="/admin/users" className="card adb-console-link-card cal-border-blue-override">
+                <div><h3 className="adb-console-card-title">Users Profile Deck</h3><p className="adb-console-card-desc">Privileges, System Role Mapping & Access Security</p></div>
             </Link>
 
-            {/* ✅ NEW: CLASSES CARD */}
-            <Link to="/admin/classes" className="card" onMouseEnter={() => setHoveredCard('link-classes')} onMouseLeave={() => setHoveredCard(null)} style={getCardStyle('link-classes', { textDecoration: 'none', padding:'25px', borderRadius: '12px', background: 'white', borderLeft: '4px solid #ec4899', color: 'inherit' })}>
-                <div><h3 style={{ margin: 0, color:'#1e293b' }}>Classes</h3><p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '0.9rem' }}>Schedule & Clashes</p></div>
+            <Link to="/admin/classes" className="card adb-console-link-card cal-border-pink-override">
+                <div><h3 className="adb-console-card-title">Timetable Schedule</h3><p className="adb-console-card-desc">Syllabus Grid Layouts, Clashes & Room Diagnostics</p></div>
             </Link>
 
-            <Link to="/admin/courses" className="card" onMouseEnter={() => setHoveredCard('link-courses')} onMouseLeave={() => setHoveredCard(null)} style={getCardStyle('link-courses', { textDecoration: 'none', padding:'25px', borderRadius: '12px', background: 'white', borderLeft: '4px solid #f59e0b', color: 'inherit' })}>
-                <div><h3 style={{ margin: 0, color:'#1e293b' }}>Attendance</h3><p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '0.9rem' }}>Academic Data</p></div>
+            <Link to="/admin/courses" className="card adb-console-link-card cal-border-amber-override">
+                <div><h3 className="adb-console-card-title">Attendance Sheets</h3><p className="adb-console-card-desc">Lock Overrides & Finalized Semester Verification Logs</p></div>
             </Link>
 
-            <Link to="/admin/semesters" className="card" onMouseEnter={() => setHoveredCard('link-sem')} onMouseLeave={() => setHoveredCard(null)} style={getCardStyle('link-sem', { textDecoration: 'none', padding:'25px', borderRadius: '12px', background: 'white', borderLeft: '4px solid #f97316', color: 'inherit' })}>
-                <div><h3 style={{ margin: 0, color:'#1e293b' }}>Semesters</h3><p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '0.9rem' }}>Academic Calendar</p></div>
-            </Link>
-            {/* Add this inside the Management Console grid in AdminDashboard.jsx */}
-
-            <Link 
-                to="/admin/announcements" 
-                className="card" 
-                onMouseEnter={() => setHoveredCard('link-ann')}
-                onMouseLeave={() => setHoveredCard(null)}
-                style={getCardStyle('link-ann', { textDecoration: 'none', padding:'25px', borderRadius: '12px', background: 'white', borderLeft: '4px solid #ef4444', color: 'inherit' })}
-            >
-                <div>
-                    <h3 style={{ margin: 0, color:'#1e293b' }}>Announcements</h3>
-                    <p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '0.9rem' }}>Post Global Alerts</p>
-                </div>
-            </Link>
-            <Link 
-                to="/admin/calendar" 
-                className="card" 
-                onMouseEnter={() => setHoveredCard('link-cal')}
-                onMouseLeave={() => setHoveredCard(null)}
-                style={getCardStyle('link-cal', { textDecoration: 'none', padding:'25px', borderRadius: '12px', background: 'white', borderLeft: '4px solid #8b5cf6', color: 'inherit' })}
-            >
-                <div>
-                    <h3 style={{ margin: 0, color:'#1e293b' }}>Visual Calendar</h3>
-                    <p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '0.9rem' }}>Week View & Gaps</p>
-                </div>
+            <Link to="/admin/semesters" className="card adb-console-link-card cal-border-orange-override">
+                <div><h3 className="adb-console-card-title">Academic Semesters</h3><p className="adb-console-card-desc">Configure Active Calendar Terms Spaces Matrices</p></div>
             </Link>
 
-            <Link to="/admin/departments" className="card" onMouseEnter={() => setHoveredCard('link-depts')} onMouseLeave={() => setHoveredCard(null)} style={getCardStyle('link-depts', { textDecoration: 'none', padding:'25px', borderRadius: '12px', background: 'white', borderLeft: '4px solid #10b981', color: 'inherit' })}>
-                <div><h3 style={{ margin: 0, color:'#1e293b' }}>Departments</h3><p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '0.9rem' }}>Programs & Faculty</p></div>
-            </Link>
-            <Link 
-                to="/admin/feedback" 
-                className="card" 
-                onMouseEnter={() => setHoveredCard('link-feed')}
-                onMouseLeave={() => setHoveredCard(null)}
-                style={getCardStyle('link-feed', { textDecoration: 'none', padding:'25px', borderRadius: '12px', background: 'white', borderLeft: '4px solid #fbbf24', color: 'inherit' })}
-            >
-                <div>
-                    <h3 style={{ margin: 0, color:'#1e293b' }}>Course Reviews</h3>
-                    <p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '0.9rem' }}>Quality Assurance</p>
-                </div>
+            <Link to="/admin/announcements" className="card adb-console-link-card cal-border-red-override">
+                <div><h3 className="adb-console-card-title">Global Broadcast</h3><p className="adb-console-card-desc">Publish Alphanumeric Announcement Banner Channels</p></div>
             </Link>
 
-            <Link to="/admin/reports" className="card" onMouseEnter={() => setHoveredCard('link-reports')} onMouseLeave={() => setHoveredCard(null)} style={getCardStyle('link-reports', { textDecoration: 'none', padding:'25px', borderRadius: '12px', background: 'white', borderLeft: '4px solid #8b5cf6', color: 'inherit' })}>
-                <div><h3 style={{ margin: 0, color:'#1e293b' }}>Reports</h3><p style={{ margin: '5px 0 0', color: '#64748b', fontSize: '0.9rem' }}>System Usage</p></div>
+            <Link to="/admin/calendar" className="card adb-console-link-card cal-border-purple-override">
+                <div><h3 className="adb-console-card-title">Interactive Matrix</h3><p className="adb-console-card-desc">Complete Calendar Weekly Partition Visual Flow</p></div>
+            </Link>
+
+            <Link to="/admin/departments" className="card adb-console-link-card cal-border-emerald-override">
+                <div><h3 className="adb-console-card-title">Faculty Workgroups</h3><p className="adb-console-card-desc">Programs Classification Core, Branches & Structures</p></div>
+            </Link>
+
+            <Link to="/admin/feedback" className="card adb-console-link-card cal-border-yellow-override">
+                <div><h3 className="adb-console-card-title">Quality Assurance</h3><p className="adb-console-card-desc">Analyze Student Course Reviews Evaluation Data</p></div>
+            </Link>
+
+            <Link to="/admin/reports" className="card adb-console-link-card cal-border-indigo-override">
+                <div><h3 className="adb-console-card-title">System Metrics</h3><p className="adb-console-card-desc">Compute Infrastructure Load & RAG Storage Footprints</p></div>
             </Link>
         </div>
 
@@ -212,13 +198,12 @@ const AdminDashboard = () => {
   );
 };
 
-const KPICard = ({ title, value, color }) => {
-  const [hover, setHover] = useState(false);
-  return (
-    <div className="card" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} style={{ padding: '25px', borderRadius: '12px', background: 'white', borderLeft: `5px solid ${color}`, transform: hover ? 'translateY(-5px)' : 'translateY(0)', boxShadow: hover ? '0 15px 30px rgba(0,0,0,0.1)' : '0 4px 6px -1px rgba(0,0,0,0.05)', transition: 'all 0.3s ease' }}>
-        <div><p style={{ margin: '0 0 5px 0', color: '#64748b', fontSize: '0.9rem', fontWeight: '600' }}>{title}</p><h2 style={{ margin: 0, fontSize: '2rem', color: '#1e293b' }}>{value || 0}</h2></div>
-    </div>
-  );
-};
+// ✅ REFACTOR: Structural decoupling offloads volatile inline hover script loops to CSS transitions
+const KPICard = ({ title, value, variant }) => (
+  <div className={`sa-stat-node-box box-accent-border-${variant} adb-kpi-hover-card`}>
+    <div className="sav-stat-node-label">{title}</div>
+    <div className={`sa-stat-integer-value text-color-${variant} m-top-6`}>{value || 0}</div>
+  </div>
+);
 
 export default AdminDashboard;

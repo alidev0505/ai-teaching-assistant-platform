@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// ✅ IMPORT THE NEW FUNCTION
 import { getAllCoursesAdmin, updateCourseSchedule, downloadScheduleCsv } from '../../services/api'; 
 
 const AdminClass = () => {
@@ -8,14 +7,11 @@ const AdminClass = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Toggle to show only clashes
   const [showConflictsOnly, setShowConflictsOnly] = useState(false);
-  
-  // ✅ NEW: Download loading state
   const [downloading, setDownloading] = useState(false);
+  const [systemAlert, setSystemAlert] = useState({ type: '', text: '' });
 
-  // Edit State
+  // Edit Inline State
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ day: '', time: '', room: '' });
   const [saving, setSaving] = useState(false);
@@ -27,22 +23,26 @@ const AdminClass = () => {
   const fetchData = async () => {
     try {
       const res = await getAllCoursesAdmin();
-      setCourses(res.data.courses || []);
+      setCourses(res?.data?.courses || []);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to synchronize course schedule records layout:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ NEW: Handle Download Click
   const handleDownload = async () => {
     setDownloading(true);
-    await downloadScheduleCsv();
-    setDownloading(false);
+    setSystemAlert({ type: '', text: '' });
+    try {
+      await downloadScheduleCsv();
+    } catch (err) {
+      setSystemAlert({ type: 'error', text: 'Export Disruption: Failed to compile download buffer file parameters.' });
+    } finally {
+      setDownloading(false);
+    }
   };
 
-  // --- CLASH DETECTION LOGIC ---
   const checkClash = (course) => {
     const clash = courses.find(c => 
       c.id !== course.id && 
@@ -55,32 +55,36 @@ const AdminClass = () => {
   };
 
   const handleEditClick = (course) => {
+    setSystemAlert({ type: '', text: '' });
     setEditingId(course.id);
+    
+    // ✅ PARSING PROTECTION: Optional chaining guarantees structure safety checks on selection triggers
+    const timeSegment = course.time ? course.time.split(' - ')[0] : '';
     setEditForm({ 
         day: course.day || '', 
-        time: course.time ? course.time.split(' - ')[0] : '', 
+        time: timeSegment, 
         room: course.room || '' 
     });
   };
 
   const handleSave = async (id) => {
     setSaving(true);
+    setSystemAlert({ type: '', text: '' });
     try {
         await updateCourseSchedule(id, editForm);
-        
         const updatedCourses = courses.map(c => 
             c.id === id ? { ...c, ...editForm } : c
         );
         setCourses(updatedCourses);
         setEditingId(null);
+        setSystemAlert({ type: 'success', text: 'Syllabus schedule configurations successfully written and assigned!' });
     } catch (err) {
-        alert("Failed to save schedule.");
+        setSystemAlert({ type: 'error', text: 'Transaction Failure: Stalled processing schedule alterations.' });
     } finally {
         setSaving(false);
     }
   };
 
-  // --- FILTERING LOGIC ---
   const filteredCourses = courses.filter(c => {
     const matchesSearch = 
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -97,117 +101,101 @@ const AdminClass = () => {
   const conflictCount = courses.filter(c => checkClash(c)).length;
 
   return (
-    <div style={{ background: 'var(--bg-body)', minHeight: '100vh', paddingBottom: '40px' }}>
+    <div className="adc-page-wrapper">
       
-      {/* HEADER */}
-      <div style={{ background: '#1e293b', color: 'white', padding: '40px 0 60px 0' }}>
-        <div className="container" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 20px' }}>
-          <button onClick={() => navigate(-1)} style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', marginBottom: '15px', cursor: 'pointer' }}>← Back</button>
+      {/* ── HERO HEADER BAR ADMINISTRATIVE DECK ── */}
+      <div className="adm-hero-banner">
+        <div className="adm-grid-mesh" />
+        <div className="adm-hero-container max-width-wide">
+          <button onClick={() => navigate(-1)} className="adm-btn-back">← Back</button>
           
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'space-between', alignItems: 'end' }}>
-              <div>
-                <h1 style={{ margin: 0, fontSize: 'clamp(1.5rem, 5vw, 2rem)' }}>Class Schedule</h1>
-                <p style={{ opacity: 0.8, marginTop: '5px', fontSize: '0.9rem' }}>Manage logistics and resolve {conflictCount} detected conflicts.</p>
+          <div className="adc-hero-flex-row">
+              <div className="adc-hero-text-block">
+                <h1 className="adm-hero-main-title">Class Logistics Schedule</h1>
+                <p className="adm-hero-subtitle">Coordinate institutional lecture allocations, map classrooms, and settle {conflictCount} database conflicts.</p>
               </div>
               
-              {/* BUTTON GROUP */}
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  
-                  {/* ✅ DOWNLOAD CSV BUTTON */}
+              <div className="adc-action-buttons-flex-strip">
                   <button 
                     onClick={handleDownload}
                     disabled={downloading}
-                    style={{
-                        background: '#10b981', // Green
-                        color: 'white', border: 'none',
-                        padding: '10px 20px', borderRadius: '30px', cursor: 'pointer',
-                        fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px',
-                        transition: 'all 0.2s', fontSize: '0.9rem',
-                        opacity: downloading ? 0.7 : 1
-                    }}
+                    className="adc-btn-export-csv"
                   >
-                    {downloading ? 'Exporting...' : '📥 Export CSV'}
+                    {downloading ? 'Compiling CSV...' : '📥 Export Master CSV'}
                   </button>
 
-                  {/* Conflict Toggle Button */}
                   <button 
-                    onClick={() => setShowConflictsOnly(!showConflictsOnly)}
-                    style={{
-                        background: showConflictsOnly ? '#ef4444' : 'rgba(255,255,255,0.1)',
-                        color: 'white', border: showConflictsOnly ? 'none' : '1px solid rgba(255,255,255,0.3)',
-                        padding: '10px 20px', borderRadius: '30px', cursor: 'pointer',
-                        fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '10px',
-                        transition: 'all 0.2s',
-                        whiteSpace: 'nowrap', 
-                        fontSize: '0.9rem'
-                    }}
+                    onClick={() => { setSystemAlert({ type: '', text: '' }); setShowConflictsOnly(!showConflictsOnly); }}
+                    className={`adc-btn-conflict-toggle ${showConflictsOnly ? 'active-alert-toggle-state' : ''}`}
                   >
-                    {showConflictsOnly ? 'Show All Classes' : `⚠️ Show ${conflictCount} Conflicts Only`}
+                    {showConflictsOnly ? 'Show All Active Classes' : `⚠️ Show ${conflictCount} Conflicts Only`}
                   </button>
               </div>
           </div>
         </div>
       </div>
 
-      <div className="container" style={{ maxWidth: '1200px', margin: '-40px auto 0', padding: '0 20px' }}>
+      {/* ── CORE OPERATIONS SCHEDULE DATA MATRIX ── */}
+      <div className="adm-content-workspace max-width-wide">
         
-        {/* Search Bar */}
-        <div style={{ marginBottom: '20px' }}>
+        {/* Search Parameter Processing Input Zone */}
+        <div className="adc-search-bar-box">
             <input 
                 type="text" 
-                placeholder="🔍 Search class, code, teacher, or room..." 
+                placeholder="🔍 Search class registry by description name, catalog code, teacher signature, or room coordinates..." 
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                style={{ width: '100%', padding: '15px', borderRadius: '12px', border: '1px solid #cbd5e1', fontSize: '1rem', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}
+                className="adc-search-input-field"
             />
         </div>
 
-        {/* Responsive Table Wrapper */}
-        <div className="card" style={{ 
-            background: 'white', 
-            borderRadius: '12px', 
-            overflow: 'hidden', 
-            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-            overflowX: 'auto' 
-        }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '900px' }}>
-                <thead style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+        {systemAlert.text && (
+          <div className={`auth-alert ${systemAlert.type === 'error' ? 'error' : 'success'} adc-spaced-banner`}>
+            {systemAlert.text}
+          </div>
+        )}
+
+        {/* Master Timetable Data Grid Listings Panel */}
+        <div className="card adc-table-container-card">
+            <div className="adc-responsive-table-scroll-wrapper">
+              <table className="adc-master-schedule-table">
+                <thead>
                     <tr>
-                        <th style={{ padding: '15px', textAlign: 'left', color: '#64748b', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>COURSE</th>
-                        <th style={{ padding: '15px', textAlign: 'left', color: '#64748b', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>INSTRUCTOR</th>
-                        <th style={{ padding: '15px', textAlign: 'left', color: '#64748b', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>DAY</th>
-                        <th style={{ padding: '15px', textAlign: 'left', color: '#64748b', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>TIME</th>
-                        <th style={{ padding: '15px', textAlign: 'left', color: '#64748b', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>ROOM</th>
-                        <th style={{ padding: '15px', textAlign: 'right', color: '#64748b', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>ACTION</th>
+                        <th>Course Channel Title</th>
+                        <th>Instructor Guide</th>
+                        <th>Assigned Day</th>
+                        <th>Lecture Time Rails</th>
+                        <th>Room Assignment</th>
+                        <th className="adc-text-right">Actions Matrix</th>
                     </tr>
                 </thead>
                 <tbody>
                     {filteredCourses.length === 0 ? (
-                        <tr><td colSpan="6" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>No classes found.</td></tr>
+                        <tr><td colSpan="6" className="adc-table-empty-fallback-text">No active class schedule metrics matched your parameters.</td></tr>
                     ) : filteredCourses.map(course => {
                         const isClash = checkClash(course); 
                         const isEditing = editingId === course.id;
 
                         return (
-                            <tr key={course.id} style={{ borderBottom: '1px solid #f1f5f9', background: isClash ? '#fef2f2' : 'white' }}>
-                                <td style={{ padding: '15px', fontWeight: '600', color: '#1e293b' }}>
-                                    {course.name}
-                                    <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'normal', whiteSpace: 'nowrap', marginTop: '2px' }}>
-                                        {course.course_catalog_code && <span style={{ fontWeight: 'bold', color: '#334155' }}>{course.course_catalog_code}</span>}
-                                        {course.course_catalog_code && <span style={{ margin: '0 6px', color: '#cbd5e1' }}>|</span>}
-                                        <span>{course.class_code}</span>
+                            <tr key={course.id} className={`adc-table-tr-node ${isClash ? 'clash-alert-row-danger-state' : ''}`}>
+                                <td className="adc-td-primary-title-block">
+                                    <div className="adc-course-main-string-title">{course.name}</div>
+                                    <div className="adc-course-meta-sub-row">
+                                        {course.course_catalog_code && <span className="adc-catalog-code-span-badge">{course.course_catalog_code}</span>}
+                                        {course.course_catalog_code && <span className="adc-divider-pipe">|</span>}
+                                        <span className="adc-class-code-span-badge">{course.class_code}</span>
                                     </div>
-                                    {isClash && <span style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 'bold', display: 'block', marginTop: '4px', whiteSpace: 'nowrap' }}>⚠️ CONFLICT</span>}
+                                    {isClash && <span className="adc-conflict-alert-tag-pill">⚠️ LOGISTICS CONFLICT DETECTED</span>}
                                 </td>
-                                <td style={{ padding: '15px', color: '#475569' }}>{course.teacher_name}</td>
+                                <td className="adc-td-instructor-text-cell">{course.teacher_name || 'Unassigned Faculty'}</td>
                                 
-                                {/* Day Column */}
-                                <td style={{ padding: '15px' }}>
+                                {/* Day Data Column Entry Select */}
+                                <td>
                                     {isEditing ? (
                                         <select 
                                             value={editForm.day} 
                                             onChange={e => setEditForm({...editForm, day: e.target.value})}
-                                            style={{ padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1', width: '100%' }}
+                                            className="rp-input-field select-cursor-pointer adc-input-inline-editor-adjustment"
                                         >
                                             <option value="">Select...</option>
                                             <option value="Monday">Monday</option>
@@ -218,62 +206,63 @@ const AdminClass = () => {
                                             <option value="Saturday">Saturday</option>
                                         </select>
                                     ) : (
-                                        <span style={{ padding: '4px 8px', background: course.day ? '#f1f5f9' : '#fff1f2', color: course.day ? 'inherit' : '#ef4444', borderRadius: '4px', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
-                                            {course.day || 'Not Set'}
+                                        <span className={`adc-metadata-indicator-badge ${course.day ? 'badge-state-filled' : 'badge-state-empty'}`}>
+                                            {course.day || 'Not Configured'}
                                         </span>
                                     )}
                                 </td>
 
-                                {/* Time Column */}
-                                <td style={{ padding: '15px' }}>
+                                {/* Time Data Column Entry Select */}
+                                <td>
                                     {isEditing ? (
                                         <input 
                                             type="time" 
                                             value={editForm.time} 
                                             onChange={e => setEditForm({...editForm, time: e.target.value})}
-                                            style={{ padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1', width: '100%' }}
+                                            className="rp-input-field adc-input-inline-editor-adjustment"
                                         />
                                     ) : (
-                                        <span style={{ padding: '4px 8px', background: course.time ? '#f1f5f9' : '#fff1f2', color: course.time ? 'inherit' : '#ef4444', borderRadius: '4px', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
-                                            {course.time || 'Not Set'}
+                                        <span className={`adc-metadata-indicator-badge ${course.time ? 'badge-state-filled' : 'badge-state-empty'}`}>
+                                            {course.time || 'Not Configured'}
                                         </span>
                                     )}
                                 </td>
 
-                                {/* Room Column */}
-                                <td style={{ padding: '15px' }}>
+                                {/* Room Data Column Entry Select */}
+                                <td>
                                     {isEditing ? (
                                         <input 
                                             type="text" 
                                             value={editForm.room} 
                                             onChange={e => setEditForm({...editForm, room: e.target.value})}
-                                            placeholder="Room"
-                                            style={{ padding: '8px', borderRadius: '4px', border: '1px solid #cbd5e1', width: '80px' }}
+                                            placeholder="Room Key"
+                                            className="rp-input-field adc-input-inline-editor-adjustment inline-width-override-box"
                                         />
                                     ) : (
-                                        <span style={{ padding: '4px 8px', background: isClash ? '#fee2e2' : (course.room ? '#f0fdf4' : '#fff1f2'), color: isClash ? '#991b1b' : (course.room ? '#166534' : '#ef4444'), borderRadius: '4px', fontWeight: 'bold', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
-                                            {course.room || 'No Room'}
+                                        <span className={`adc-room-indicator-badge ${isClash ? 'room-state-clash' : (course.room ? 'room-state-filled' : 'room-state-empty')}`}>
+                                            {course.room || 'No Room Assigned'}
                                         </span>
                                     )}
                                 </td>
 
-                                <td style={{ padding: '15px', textAlign: 'right' }}>
+                                <td className="adc-text-right">
                                     {isEditing ? (
-                                        <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
-                                            <button onClick={() => handleSave(course.id)} disabled={saving} style={{ background: '#10b981', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
+                                        <div className="adc-action-buttons-inline-group-flex">
+                                            <button onClick={() => handleSave(course.id)} disabled={saving} className="adc-btn-inline-save">
                                                 {saving ? '...' : 'Save'}
                                             </button>
-                                            <button onClick={() => setEditingId(null)} style={{ background: '#94a3b8', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
+                                            <button onClick={() => setEditingId(null)} className="adc-btn-inline-cancel">Cancel</button>
                                         </div>
                                     ) : (
-                                        <button onClick={() => handleEditClick(course)} style={{ background: 'white', border: '1px solid #cbd5e1', color: '#475569', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Edit</button>
+                                        <button onClick={() => handleEditClick(course)} className="adc-btn-inline-edit">Modify Layout</button>
                                     )}
                                 </td>
                             </tr>
                         );
                     })}
                 </tbody>
-            </table>
+              </table>
+            </div>
         </div>
 
       </div>
