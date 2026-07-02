@@ -96,6 +96,202 @@ const FeedbackModal = ({ courseId, onClose }) => {
           </div>
         </form>
       </div>
+
+      {/* ── COMPONENT SELF-CONTAINED DESIGN STYLES ── */}
+      <style>{`
+        .fm-overlay {
+          position: fixed;
+          inset: 0;
+          background-color: rgba(15, 23, 42, 0.6);
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 3000;
+          font-family: 'Inter', system-ui, -apple-system, sans-serif;
+          padding: 20px;
+          box-sizing: border-box;
+        }
+
+        .fm-modal-card {
+          background-color: #ffffff;
+          border-radius: 16px;
+          width: 100%;
+          max-width: 440px;
+          box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+          border: 1px solid #e2e8f0;
+          padding: 32px;
+          box-sizing: border-box;
+          animation: fm-scale-up 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .fm-modal-title {
+          margin: 0 0 24px 0;
+          color: #0f172a;
+          text-align: center;
+          font-size: 1.35rem;
+          font-weight: 800;
+          letter-spacing: -0.025em;
+        }
+
+        /* Interactive Feedback Stars Track */
+        .fm-stars-container {
+          display: flex;
+          justify-content: center;
+          gap: 8px;
+          margin-bottom: 8px;
+        }
+
+        .fm-star-icon {
+          font-size: 2.5rem;
+          cursor: pointer;
+          user-select: none;
+          line-height: 1;
+          transition: transform 0.15s ease, color 0.15s ease;
+        }
+
+        .fm-star-icon:hover {
+          transform: scale(1.1);
+        }
+
+        .fm-star-icon.active {
+          color: #eab308;
+          text-shadow: 0 2px 4px rgba(234, 179, 8, 0.15);
+        }
+
+        .fm-star-icon.inactive {
+          color: #cbd5e1;
+        }
+
+        .fm-rating-badge {
+          text-align: center;
+          font-size: 0.9rem;
+          font-weight: 700;
+          color: #475569;
+          margin: 0 0 24px 0;
+        }
+
+        /* Comments Form Elements Controls */
+        .fm-form-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-bottom: 24px;
+        }
+
+        .fm-form-label {
+          font-weight: 700;
+          color: #334155;
+          font-size: 0.825rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .fm-textarea {
+          width: 100%;
+          padding: 12px 14px;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          font-size: 0.95rem;
+          color: #0f172a;
+          background-color: #ffffff;
+          outline: none;
+          box-sizing: border-box;
+          font-family: inherit;
+          resize: none;
+          line-height: 1.5;
+          transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .fm-textarea:focus {
+          border-color: #4f46e5;
+          box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        /* Context System Banner Responses */
+        .fm-banner-error, .fm-banner-success {
+          padding: 10px 14px;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          line-height: 1.4;
+          margin-bottom: 20px;
+          box-sizing: border-box;
+        }
+
+        .fm-banner-error {
+          background-color: #fef2f2;
+          color: #b91c1c;
+          border: 1px solid #fca5a5;
+          text-align: left;
+        }
+
+        .fm-banner-success {
+          background-color: #f0fdf4;
+          color: #166534;
+          border: 1px solid #bbf7d0;
+          text-align: center;
+        }
+
+        /* Action Layout Configurations */
+        .fm-action-row {
+          display: flex;
+          gap: 12px;
+        }
+
+        .fm-btn-secondary, .fm-btn-primary {
+          flex: 1;
+          padding: 11px;
+          border-radius: 8px;
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
+          transition: all 0.15s;
+          box-sizing: border-box;
+          text-align: center;
+        }
+
+        .fm-btn-secondary {
+          background-color: #ffffff;
+          border: 1px solid #cbd5e1;
+          color: #475569;
+        }
+
+        .fm-btn-secondary:hover:not(:disabled) {
+          background-color: #f8fafc;
+          color: #0f172a;
+        }
+
+        .fm-btn-primary {
+          background-color: #4f46e5;
+          border: none;
+          color: #ffffff;
+          font-weight: 700;
+          box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);
+        }
+
+        .fm-btn-primary:hover:not(:disabled) {
+          background-color: #4338ca;
+        }
+
+        .fm-btn-secondary:disabled, .fm-btn-primary:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        @keyframes fm-scale-up {
+          from { transform: scale(0.96); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+
+        @media (max-width: 440px) {
+          .fm-modal-card { padding: 24px 20px; }
+          .fm-action-row { flex-direction: column-reverse; gap: 10px; }
+          .fm-action-row button { width: 100%; }
+        }
+      `}</style>
     </div>
   );
 };

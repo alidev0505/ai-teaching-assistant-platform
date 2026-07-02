@@ -65,6 +65,9 @@ const AppContent = () => {
     <>
       {!isLandingPage && <Navbar />}
 
+      {/* 🟢 WRAP ALL ROUTES IN THIS CONTAINER */}
+      <div className={!isLandingPage ? "main-app-content-container" : ""}>
+
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={user ? getDashboardRedirect() : <Login />} />
@@ -102,6 +105,7 @@ const AppContent = () => {
 
         <Route path="*" element={getDashboardRedirect()} />
       </Routes>
+      </div>
     </>
   );
 };

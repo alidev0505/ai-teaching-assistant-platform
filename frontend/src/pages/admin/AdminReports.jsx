@@ -171,6 +171,91 @@ const AdminReports = () => {
         </div>
 
       </div>
+
+      {/* ── COMPONENT SELF-CONTAINED EMBEDDED DESIGN MATRIX ── */}
+      <style>{`
+        .ars-page-wrapper { min-height: 100vh; background-color: #f8fafc; font-family: 'Inter', system-ui, sans-serif; padding-bottom: 60px; }
+        .max-width-wide { max-width: 1400px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; }
+        
+        /* Fixed Hero Banner Elements */
+        .adm-hero-banner { background: linear-gradient(150deg, #1e293b 0%, #0f172a 100%); padding: 40px 0 100px; position: relative; overflow: hidden; margin-bottom: -50px; }
+        .adm-grid-mesh { position: absolute; inset: 0; background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px); background-size: 28px 28px; }
+        
+        .ars-hero-alignment-header-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; position: relative; z-index: 2; }
+        .ars-brand-text-block { display: flex; flex-direction: column; align-items: flex-start; }
+        
+        .adm-btn-back { background: rgba(255, 255, 255, 0.1); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.2); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: background 0.2s; margin-bottom: 20px; font-family: inherit; }
+        .adm-btn-back:hover { background: rgba(255, 255, 255, 0.2); }
+        .adm-hero-main-title { font-size: 2.2rem; font-weight: 900; color: #ffffff; margin: 0; letter-spacing: -1px; }
+        .adm-hero-subtitle { color: #94a3b8; font-size: 1rem; margin-top: 8px; max-width: 700px; }
+
+        .ars-btn-success-export-csv { background: #10b981; color: #ffffff; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: background-color 0.2s, transform 0.1s; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2); white-space: nowrap; font-family: inherit; }
+        .ars-btn-success-export-csv:hover { background: #059669; }
+        
+        .adm-content-workspace { position: relative; z-index: 10; display: flex; flex-direction: column; gap: 24px; }
+        .adb-spaced-row-margin { margin-bottom: 8px; }
+        .card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); overflow: hidden; }
+
+        /* KPI Scoring Metrics Deck */
+        .sa-stats-grid-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .sa-stat-node-box { padding: 24px; transition: transform 0.2s, box-shadow 0.2s; }
+        .adb-kpi-hover-card:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.04); }
+        
+        .sav-stat-node-label { font-size: 0.85rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+        .sa-stat-integer-value { font-size: 2.2rem; font-weight: 900; line-height: 1; }
+        .sav-stat-node-subtext { font-size: 0.8rem; color: #94a3b8; font-weight: 500; }
+        .m-top-6 { margin-top: 8px; }
+        
+        .box-accent-border-purple { border-top: 4px solid #a855f7; }
+        .box-accent-border-blue { border-top: 4px solid #3b82f6; }
+        .box-accent-border-amber { border-top: 4px solid #f59e0b; }
+        
+        .text-color-purple { color: #8b5cf6; }
+        .text-color-blue { color: #2563eb; }
+        .text-color-amber { color: #d97706; }
+
+        /* Chart Components Module */
+        .adb-panel-card-container { padding: 24px; }
+        .ta-chart-inner-title { margin: 0 0 20px 0; font-size: 1.1rem; font-weight: 800; color: #0f172a; }
+        .ars-chart-canvas-box-rail { width: 100%; height: 320px; }
+        .std-chart-empty-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-weight: 500; font-size: 0.95rem; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; }
+
+        /* Ledger Table Module */
+        .adc-table-container-card { padding: 0 !important; }
+        .qd-panel-inner-header-banner { padding: 20px 24px; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+        .qd-visual-panel-title { font-size: 1.15rem; font-weight: 800; color: #1e293b; margin: 0; }
+        
+        .adc-responsive-table-scroll-wrapper { width: 100%; overflow-x: auto; }
+        .adc-master-schedule-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .adc-master-schedule-table th { padding: 16px 24px; background-color: #f8fafc; font-size: 0.75rem; color: #64748b; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; font-weight: 700; letter-spacing: 0.05em; white-space: nowrap; }
+        .adc-master-schedule-table td { vertical-align: middle; padding: 16px 24px; border-bottom: 1px solid #f1f5f9; }
+        .adc-table-tr-node:hover { background-color: #f8fafc; transition: background-color 0.15s; }
+        .adc-table-tr-node:last-child td { border-bottom: none; }
+        
+        .adc-course-main-string-title { color: #0f172a; font-weight: 800; font-size: 0.95rem; }
+        .adc-td-instructor-text-cell { font-weight: 600; color: #475569; font-size: 0.9rem; }
+        .adc-text-right { text-align: right; }
+        .font-weight-800 { font-weight: 800; }
+        
+        /* Inline Status Tags */
+        .ab-banner { display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; }
+        .ab-type-info { background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .padding-badge-override { padding: 4px 10px; font-size: 0.725rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .adc-table-empty-fallback-text { text-align: center; padding: 60px !important; color: #94a3b8; font-weight: 500; font-size: 0.95rem; }
+
+        /* System Alert Feedback Panels */
+        .auth-alert { padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; box-sizing: border-box; }
+        .auth-alert.error { background-color: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+        .auth-alert.success { background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .adc-spaced-banner { margin-bottom: 0px; }
+
+        /* Responsive Mobile Triggers */
+        @media (max-width: 640px) {
+          .ars-hero-alignment-header-row { flex-direction: column; align-items: stretch; }
+          .ars-btn-success-export-csv { width: 100%; text-align: center; }
+        }
+      `}</style>
     </div>
   );
 };

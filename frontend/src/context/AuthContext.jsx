@@ -48,7 +48,7 @@ export const AuthProvider = ({ children }) => {
     if (res?.data?.access_token) {
         localStorage.setItem('token', res.data.access_token);
         
-        // Dynamic fallback fallback if user object isn't fully nested inside response
+        // Dynamic fallback if user object isn't fully nested inside response
         const userData = res.data.user || { email, role: res.data.role || 'student' };
         
         localStorage.setItem('user', JSON.stringify(userData));
@@ -69,7 +69,6 @@ export const AuthProvider = ({ children }) => {
     window.location.href = '/login'; // Hard reset to purge un-garbage-collected states cleanly
   };
 
-  // ✅ UI OPTIMIZATION: Swapped hardcoded loading framework wrapper for clean CSS layout hooking
   if (loading) {
     return (
       <div className="ac-loading-overlay">
@@ -77,13 +76,56 @@ export const AuthProvider = ({ children }) => {
           <div className="ac-spinner"></div>
           <span className="ac-loading-text">Verifying User Session...</span>
         </div>
+        
+        {/* ── INTERFACED MOUNT STYLING MATRIX ── */}
+        <style>{`
+          .ac-loading-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+          }
+
+          .ac-loading-spinner-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+          }
+
+          .ac-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #cbd5e1;
+            border-top-color: #4f46e5;
+            border-radius: 50%;
+            animation: ac-spin-loop 0.8s linear infinite;
+          }
+
+          .ac-loading-text {
+            color: #475569;
+            font-weight: 600;
+            font-size: 0.95rem;
+            letter-spacing: -0.01em;
+          }
+
+          @keyframes ac-spin-loop {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
 
   return (
-    <AuthContext.Provider value={{ user, loginUser, signupUser, logoutUser, loading }}>
-      {children}
-    </AuthContext.Provider>
+    <div className="app-context-authorized-node" style={{ display: 'contents' }}>
+      <AuthContext.Provider value={{ user, loginUser, signupUser, logoutUser, loading }}>
+        {children}
+      </AuthContext.Provider>
+    </div>
   );
 };

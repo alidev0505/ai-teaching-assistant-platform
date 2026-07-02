@@ -49,7 +49,6 @@ const AdminAnnouncements = () => {
     }
   };
 
-  // ✅ REFACTOR: Maps clean semantic class targets instead of raw programmatically injected hex values
   const getBannerMeta = (type) => {
     switch(type) {
       case 'warning': return { className: 'ab-type-warning', icon: '⚠️' };
@@ -143,8 +142,51 @@ const AdminAnnouncements = () => {
             </div>
           )}
         </div>
-
       </div>
+
+      {/* ── COMPONENT SELF-CONTAINED EMBEDDED STYLES ── */}
+      <style>{`
+        .adm-page-wrapper { background: #f8fafc; min-height: 100vh; padding-bottom: 80px; font-family: 'Inter', system-ui, sans-serif; }
+        
+        .adm-hero-banner { background: linear-gradient(150deg, #1e293b 0%, #0f172a 100%); padding: 40px 0 100px; position: relative; overflow: hidden; }
+        .adm-grid-mesh { position: absolute; inset: 0; background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px); background-size: 28px 28px; }
+        .adm-hero-container { max-width: 900px; margin: 0 auto; padding: 0 24px; position: relative; }
+        
+        .adm-btn-back { background: rgba(255, 255, 255, 0.1); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.2); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; margin-bottom: 20px; transition: background 0.2s; }
+        .adm-btn-back:hover { background: rgba(255, 255, 255, 0.2); }
+        .adm-hero-main-title { font-size: 2.2rem; font-weight: 900; color: #ffffff; margin: 0; letter-spacing: -1px; }
+        .adm-hero-subtitle { color: #94a3b8; font-size: 1rem; margin-top: 8px; }
+        
+        .adm-content-workspace { max-width: 900px; margin: -50px auto 0; padding: 0 24px; position: relative; }
+        
+        .adm-form-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); margin-bottom: 30px; }
+        .adm-panel-title { margin: 0 0 20px 0; font-size: 1.25rem; font-weight: 800; color: #0f172a; }
+        .adm-form-container { display: flex; flex-direction: column; gap: 16px; }
+        .adm-input-label { font-weight: 700; color: #475569; font-size: 0.825rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .adm-textarea-resize-lock { resize: vertical; min-height: 120px; }
+        
+        .adm-announcements-list-stack { display: flex; flex-direction: column; gap: 16px; }
+        .adm-broadcast-item-card { display: flex; align-items: flex-start; justify-content: space-between; border-radius: 12px; padding: 20px; }
+        .adm-broadcast-left-content { display: flex; gap: 16px; align-items: flex-start; }
+        .adm-broadcast-icon-wrapper { font-size: 1.5rem; line-height: 1; }
+        .adm-broadcast-body-string { font-size: 0.95rem; font-weight: 600; color: #1e293b; margin-bottom: 4px; }
+        .adm-broadcast-timestamp-log { font-size: 0.75rem; color: #64748b; font-weight: 600; }
+        
+        .adm-btn-delete-broadcast { background: transparent; border: 1px solid rgba(0,0,0,0.1); padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; color: #dc2626; transition: all 0.15s; }
+        .adm-btn-delete-broadcast:hover { background: #fee2e2; border-color: #fca5a5; }
+        
+        /* Fallback State */
+        .pr-empty-roster-state-box { text-align: center; padding: 60px 24px; background: #ffffff; border: 2px dashed #cbd5e1; border-radius: 12px; color: #64748b; }
+        .pr-empty-box-art { font-size: 3rem; margin-bottom: 12px; }
+        .pr-empty-box-message-prompt { font-weight: 600; }
+
+        /* Shared Component Styles */
+        .auth-alert { padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; }
+        .auth-alert.error { background-color: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+        .adm-spaced-banner { margin-bottom: 20px; }
+        .btn-primary { background: #2563eb; color: #ffffff; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+        .rp-input-field { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
+      `}</style>
     </div>
   );
 };

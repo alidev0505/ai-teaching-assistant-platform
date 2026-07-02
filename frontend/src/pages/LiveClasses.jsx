@@ -177,19 +177,19 @@ const LiveClasses = () => {
                 <div className="lv-itemized-metadata-display-box">
                     <p className="lv-metadata-paragraph-text"><strong>Syllabus Channel:</strong> {s.course_name}</p>
                     <p className="lv-metadata-paragraph-text text-highlight-blue">
-                        📅 {new Date(s.start_time).toLocaleString(undefined, { 
-                            weekday: 'short', 
-                            month: 'short', 
-                            day: 'numeric', 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
+                      📅 {new Date(s.start_time).toLocaleString(undefined, { 
+                          weekday: 'short', 
+                          month: 'short', 
+                          day: 'numeric', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
                         })}
                     </p>
                 </div>
                 
                 <div className="sa-mini-split-stats-grid padding-top-small">
                     <a href={s.meeting_link} target="_blank" rel="noreferrer" className="lc-btn-join text-decoration-none-override">
-                        Enter Live Space →
+                      Enter Live Space →
                     </a>
                     {user?.role === 'teacher' && (
                         <button onClick={() => handleDelete(s.id)} className="lc-btn-cancel">
@@ -202,6 +202,89 @@ const LiveClasses = () => {
             </div>
         )}
       </div>
+
+      {/* ── COMPONENT SELF-CONTAINED EMBEDDED STYLES MATRIX ── */}
+      <style>{`
+        .lv-page-wrapper { background: #f8fafc; min-height: 100vh; padding-bottom: 60px; font-family: 'Inter', sans-serif; }
+        
+        .lv-hero-banner { background: linear-gradient(150deg, #0c1445 0%, #1e3a8a 45%, #0284c7 100%); padding: 40px 0 100px; position: relative; overflow: hidden; }
+        .lv-grid-mesh { position: absolute; inset: 0; background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px); background-size: 28px 28px; }
+        .lv-hero-container { max-width: 1000px; margin: 0 auto; padding: 0 24px; position: relative; }
+        .lv-hero-main-title { color: #ffffff; font-size: clamp(1.8rem, 5vw, 2.5rem); font-weight: 900; margin: 0; letter-spacing: -0.5px; }
+        .lv-hero-subtitle { color: rgba(255, 255, 255, 0.8); margin-top: 8px; font-size: 1rem; line-height: 1.4; }
+        
+        .lv-content-workspace { max-width: 1000px; margin: -50px auto 0; padding: 0 20px; position: relative; z-index: 10; }
+        .lv-spaced-banner { margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        
+        /* Scheduling Form Panel Styles */
+        .lv-schedule-form-card { background: #ffffff; padding: 30px; border-radius: 16px; border-left: 6px solid #4f46e5; box-shadow: 0 10px 25px rgba(0,0,0,0.04); border-top: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; box-sizing: border-box; }
+        .lv-card-header-flex-row { display: flex; align-items: center; gap: 15px; margin-bottom: 25px; }
+        .lv-card-icon-avatar { background: #eff6ff; padding: 12px; border-radius: 10px; font-size: 1.5rem; color: #4f46e5; line-height: 1; }
+        .lv-card-title-header-block { display: flex; flex-direction: column; gap: 2px; }
+        .lv-card-inner-title { font-size: 1.2rem; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.3px; }
+        .lv-card-inner-subtitle { font-size: 0.85rem; color: #64748b; margin: 0; font-weight: 500; }
+        
+        .lv-grid-form-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .lv-form-group-full-width { grid-column: 1 / -1; }
+        .lv-form-group-mobile-full-width { grid-column: auto; }
+        .lv-input-form-label { display: block; margin-bottom: 8px; font-weight: 700; font-size: 0.85rem; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; }
+        .font-family-inherit-override { font-family: inherit !important; }
+        .padding-top-micro { padding-top: 4px; }
+        .lv-btn-schedule-submit { width: 100%; padding: 14px; font-weight: 800; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25); border: none; border-radius: 8px; background: #4f46e5; color: white; cursor: pointer; transition: all 0.2s; }
+        .lv-btn-schedule-submit:hover { background: #4338ca; }
+        
+        /* Session List Presentation Section */
+        .lv-section-main-heading { border-bottom: 2px solid #e2e8f0; padding-bottom: 14px; margin: 40px 0 25px; color: #0f172a; font-weight: 800; font-size: 1.25rem; letter-spacing: -0.3px; }
+        .lv-sessions-cards-grid-matrix { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr)); gap: 20px; }
+        
+        .lv-custom-session-card { background: #ffffff; padding: 24px; border-radius: 16px; border: 1px solid #e2e8f0; border-top: 5px solid #ef4444 !important; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); display: flex; flex-direction: column; box-sizing: border-box; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .lv-custom-session-card:hover { transform: translateX(2px); box-shadow: 0 6px 12px -1px rgba(0, 0, 0, 0.08); }
+        
+        .sa-card-header-row { display: flex; justify-content: space-between; align-items: flex-start; }
+        .margin-bottom-small { margin-bottom: 12px !important; }
+        .padding-top-small { padding-top: 14px !important; }
+        
+        .lv-live-status-pill-indicator { background: #fef2f2 !important; color: #dc2626 !important; font-weight: 800; font-size: 0.725rem !important; display: flex !important; align-items: center; gap: 6px; border: 1px solid #fca5a5; padding: 3px 10px; border-radius: 6px; text-transform: uppercase; }
+        .lv-blinking-status-dot { width: 6px; height: 6px; background: #dc2626; border-radius: 50%; animation: lv-pulse-dot-indicator 1s infinite alternate; }
+        .rt-badge { padding: 4px 10px; border-radius: 6px; font-size: 0.725rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .rt-badge-quiz { background: #dbeafe; color: #1e40af; }
+        
+        .lv-session-header-title { font-size: 1.15rem !important; margin: 0 0 12px 0 !important; letter-spacing: -0.2px; font-weight: 800; color: #0f172a; }
+        .lv-itemized-metadata-display-box { display: flex; flex-direction: column; gap: 6px; flex-grow: 1; }
+        .lv-metadata-paragraph-text { margin: 0; font-size: 0.875rem; color: #64748b; }
+        .lv-metadata-paragraph-text.text-highlight-blue { color: #4f46e5 !important; font-weight: 700; }
+        
+        .sa-mini-split-stats-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; text-align: center; }
+        .text-decoration-none-override { text-decoration: none !important; }
+        
+        .lc-btn-join { background: #10b981; color: #ffffff; padding: 10px 20px; border-radius: 8px; font-weight: 700; font-size: 0.875rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); display: inline-block; box-sizing: border-box; transition: background 0.2s ease; text-align: center; }
+        .lc-btn-join:hover { background: #059669; }
+        
+        .lc-btn-cancel { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.875rem; box-sizing: border-box; transition: background 0.2s ease; }
+        .lc-btn-cancel:hover { background: #fee2e2; }
+        
+        /* Empty States Fallbacks & Loading Prompts */
+        .lv-empty-workspace-state-box { padding: 60px 24px; text-align: center; background: #ffffff; border-radius: 16px; border: 2px dashed #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.01); }
+        .lv-empty-box-art { font-size: 3rem; margin-bottom: 14px; opacity: 0.4; line-height: 1; }
+        .lv-empty-box-title { font-size: 1.15rem; font-weight: 800; color: #0f172a; margin: 0 0 6px 0; }
+        .lv-empty-box-subtitle { color: #64748b; font-size: 0.875rem; margin: 0; line-height: 1.5; max-width: 440px; margin: 0 auto; }
+        .lv-loading-placeholder-text { text-align: center; padding: 40px; color: #64748b; font-weight: 500; font-size: 0.95rem; }
+        
+        .auth-alert { padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; }
+        .auth-alert.error { background-color: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+        .auth-alert.success { background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+
+        @keyframes lv-pulse-dot-indicator { 0% { opacity: 0.4; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1.1); } }
+        
+        @media (max-width: 650px) {
+          .lv-grid-form-layout { grid-template-columns: 1fr; }
+          .lv-form-group-mobile-full-width { grid-column: 1 / -1; }
+          .lv-hero-banner { text-align: center; padding-bottom: 80px; }
+          .lv-content-workspace { margin-top: -40px; }
+          .lv-custom-session-card { padding: 20px; }
+          .sa-mini-split-stats-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
     </div>
   );
 };

@@ -265,6 +265,118 @@ const AdminUsers = () => {
         </div>
 
       </div>
+
+      {/* ── COMPONENT SELF-CONTAINED EMBEDDED DESIGN MATRIX ── */}
+      <style>{`
+        .au-page-wrapper { min-height: 100vh; background-color: #f8fafc; font-family: 'Inter', system-ui, sans-serif; padding-bottom: 60px; }
+        .max-width-wide { max-width: 1400px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; }
+        
+        /* Hero Banner System */
+        .adm-hero-banner { background: linear-gradient(150deg, #1e293b 0%, #0f172a 100%); padding: 40px 0 100px; position: relative; overflow: hidden; margin-bottom: -50px; }
+        .adm-grid-mesh { position: absolute; inset: 0; background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px); background-size: 28px 28px; }
+        
+        .au-hero-flex-split-row { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px; position: relative; z-index: 2; }
+        .au-hero-brand-text-block { display: flex; flex-direction: column; gap: 8px; }
+        .adm-hero-main-title { font-size: 2.2rem; font-weight: 900; color: #ffffff; margin: 0; letter-spacing: -1px; }
+        .adm-hero-subtitle { color: #94a3b8; font-size: 1rem; margin: 0; max-width: 700px; }
+        
+        .adm-btn-back { background: rgba(255, 255, 255, 0.1); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.2); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: background 0.2s; }
+        .adm-btn-back:hover { background: rgba(255, 255, 255, 0.2); }
+        .au-btn-exit-override { margin-bottom: 0; white-space: nowrap; height: fit-content; }
+
+        .adm-content-workspace { position: relative; z-index: 10; display: flex; flex-direction: column; gap: 24px; }
+        .adb-spaced-row-margin { margin-bottom: 8px; }
+        
+        /* Stats KPI Cards */
+        .sa-stats-grid-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); overflow: hidden; }
+        .sa-stat-node-box { padding: 24px; }
+        
+        .au-stat-box-alignment-row { display: flex; justify-content: space-between; align-items: center; }
+        .au-stat-box-left-content { display: flex; flex-direction: column; gap: 6px; }
+        .au-stat-title-label-override { font-size: 0.85rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
+        .sa-stat-integer-value { font-size: 2.2rem; font-weight: 900; line-height: 1; margin: 0; }
+        .text-color-default-dark { color: #0f172a; }
+        .au-stat-box-right-emoji-art { font-size: 2.5rem; line-height: 1; opacity: 0.8; }
+        
+        .box-accent-border-blue { border-top: 4px solid #3b82f6; }
+        .box-accent-border-purple { border-top: 4px solid #a855f7; }
+        .box-accent-border-emerald { border-top: 4px solid #10b981; }
+
+        .auth-alert { padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; box-sizing: border-box; }
+        .auth-alert.error { background-color: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+        .auth-alert.success { background-color: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .au-spaced-alert-banner-margin { margin-bottom: 0px; }
+
+        /* Master Directory Card */
+        .au-directory-master-card-container { display: flex; flex-direction: column; }
+        
+        .au-tabs-header-nav-row { display: flex; border-bottom: 1px solid #e2e8f0; background: #f8fafc; padding: 0 10px; overflow-x: auto; }
+        .au-tab-button-node-item { background: transparent; border: none; padding: 16px 20px; font-size: 0.95rem; font-weight: 600; color: #64748b; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; white-space: nowrap; font-family: inherit; }
+        .au-tab-button-node-item:hover { color: #0f172a; }
+        .active-tab-button-indicator-state { color: #4f46e5 !important; border-bottom-color: #4f46e5 !important; font-weight: 700 !important; }
+
+        .au-toolbar-actions-flex-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; padding: 20px; border-bottom: 1px solid #f1f5f9; }
+        .au-toolbar-pagination-counter-string { margin: 0; font-size: 0.85rem; color: #64748b; font-weight: 500; }
+        .au-toolbar-search-input { min-width: 320px; flex-grow: 1; max-width: 400px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; font-family: inherit; }
+        .au-toolbar-search-input:focus { border-color: #4f46e5; }
+
+        /* Table Formatting */
+        .adc-responsive-table-scroll-wrapper { width: 100%; overflow-x: auto; }
+        .adc-master-schedule-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .adc-master-schedule-table th { padding: 16px 20px; background-color: #f8fafc; font-size: 0.75rem; color: #64748b; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; font-weight: 700; letter-spacing: 0.05em; white-space: nowrap; }
+        .adc-master-schedule-table td { vertical-align: middle; padding: 16px 20px; border-bottom: 1px solid #f1f5f9; }
+        
+        .adc-table-tr-node:hover { background-color: #f8fafc; transition: background-color 0.15s; }
+        .adc-table-tr-node:last-child td { border-bottom: none; }
+        .adc-table-empty-fallback-text { text-align: center; padding: 60px !important; color: #94a3b8; font-weight: 500; font-size: 0.95rem; }
+
+        .adc-td-primary-title-block { display: flex; flex-direction: column; gap: 4px; }
+        .adc-course-main-string-title { font-weight: 800; color: #0f172a; font-size: 0.95rem; line-height: 1.2; }
+        .sa-text-muted { color: #64748b; }
+        .text-micro { font-size: 0.8rem; }
+        .font-weight-500 { font-weight: 500; }
+        .adc-text-right { text-align: right; }
+        
+        .adc-course-meta-sub-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .m-top-6 { margin-top: 6px; }
+        
+        /* Badges & Selects */
+        .rt-badge { padding: 3px 8px; border-radius: 6px; font-weight: 800; font-size: 0.7rem; letter-spacing: 0.05em; border: 1px solid transparent; display: inline-block; white-space: nowrap; }
+        .rt-badge-quiz { background-color: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+        .rt-badge-lecture { background-color: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+        .text-transform-uppercase-override { text-transform: uppercase; }
+
+        .select-cursor-pointer { cursor: pointer; }
+        .au-select-inline-role-editor { padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; border: 1px solid #cbd5e1; outline: none; transition: all 0.2s; font-family: inherit; }
+        
+        .role-badge-admin { background-color: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+        .role-badge-teacher { background-color: #f5f3ff; color: #7c3aed; border-color: #ddd6fe; }
+        .role-badge-student { background-color: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+
+        /* Buttons */
+        .btn-danger { background: #ffffff; color: #dc2626; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 0.8rem; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+        .btn-danger:hover { background: #fef2f2; border-color: #fca5a5; }
+        .au-btn-danger-row-delete-override { white-space: nowrap; }
+
+        .au-pagination-footer-controls-strip { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-top: 1px solid #e2e8f0; background: #f8fafc; }
+        .btn-secondary { background-color: #ffffff; border: 1px solid #cbd5e1; color: #334155; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+        .btn-secondary:hover:not(:disabled) { background-color: #f1f5f9; color: #0f172a; border-color: #94a3b8; }
+        .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .au-btn-pagination-node { white-space: nowrap; }
+        .au-pagination-numerical-string { font-size: 0.85rem; font-weight: 600; color: #475569; }
+
+        /* Layout Revisions */
+        .lc-info-block { display: flex; flex-direction: column; gap: 4px; }
+        .adc-td-instructor-text-cell { font-weight: 700; color: #1e293b; font-size: 0.9rem; }
+
+        @media (max-width: 640px) {
+          .au-hero-flex-split-row { flex-direction: column; align-items: stretch; gap: 16px; }
+          .au-btn-exit-override { text-align: center; }
+          .au-toolbar-actions-flex-row { flex-direction: column; align-items: stretch; }
+          .au-toolbar-search-input { max-width: 100%; min-width: 100%; }
+        }
+      `}</style>
     </div>
   );
 };

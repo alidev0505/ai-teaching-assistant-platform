@@ -27,13 +27,24 @@ const AdminDashboard = () => {
 
   if (loading) return (
     <div className="adb-splash-container gray-prompt">
+      <div className="adc-spinner" />
       <h2>Loading Platform Dashboard Telemetry...</h2>
+      <style>{`
+        .adb-splash-container { min-height: 100vh; background-color: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Inter', sans-serif; gap: 16px; }
+        .adc-spinner { width: 44px; height: 44px; border: 4px solid #cbd5e1; border-top-color: #4f46e5; border-radius: 50%; animation: adc-spin 0.8s linear infinite; }
+        .gray-prompt h2 { color: #475569; font-weight: 600; font-size: 0.95rem; }
+        @keyframes adc-spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 
   if (!data) return (
     <div className="adb-splash-container error-prompt">
       <h2>System Overhaul Warning: Failed to calculate master dataset fields index.</h2>
+      <style>{`
+        .adb-splash-container { min-height: 100vh; background-color: #f8fafc; display: flex; align-items: center; justify-content: center; font-family: 'Inter', sans-serif; }
+        .error-prompt h2 { color: #dc2626; font-weight: 600; font-size: 1rem; }
+      `}</style>
     </div>
   );
 
@@ -152,7 +163,7 @@ const AdminDashboard = () => {
         
         {/* ── 5. SYSTEM SUBSYSTEM COMMAND MODULE DECK ── */}
         <h2 className="section-header adb-console-section-title">
-           Administrative Infrastructure Console
+            Administrative Infrastructure Console
         </h2>
         
         <div className="adb-console-links-grid-matrix">
@@ -194,11 +205,94 @@ const AdminDashboard = () => {
         </div>
 
       </div>
+
+      {/* ── COMPONENT SELF-CONTAINED EMBEDDED DESIGN MATRIX ── */}
+      <style>{`
+        .sa-page-wrapper { min-height: 100vh; background-color: #f8fafc; font-family: 'Inter', system-ui, sans-serif; padding-bottom: 60px; }
+        
+        /* Hero Banner System */
+        .adm-hero-banner { background: linear-gradient(150deg, #1e293b 0%, #0f172a 100%); padding: 60px 0 100px; position: relative; overflow: hidden; margin-bottom: -50px; }
+        .adm-grid-mesh { position: absolute; inset: 0; background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px); background-size: 28px 28px; }
+        .max-width-wide { max-width: 1400px; margin: 0 auto; padding: 0 24px; box-sizing: border-box; }
+        .adm-hero-main-title { font-size: 2.2rem; font-weight: 900; color: #ffffff; margin: 0; letter-spacing: -1px; position: relative; z-index: 2; }
+        .adm-hero-subtitle { color: #94a3b8; font-size: 1rem; margin-top: 8px; max-width: 700px; position: relative; z-index: 2; }
+        
+        .adm-content-workspace { position: relative; z-index: 10; display: flex; flex-direction: column; gap: 24px; }
+        .adb-spaced-row-margin { margin-bottom: 8px; }
+        
+        /* KPI Cards Grid */
+        .sa-stats-grid-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+        .sa-stat-node-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); transition: transform 0.2s, box-shadow 0.2s; }
+        .adb-kpi-hover-card:hover { transform: translateY(-3px); box-shadow: 0 8px 16px rgba(0,0,0,0.04); }
+        .sav-stat-node-label { font-size: 0.85rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+        .sa-stat-integer-value { font-size: 2.2rem; font-weight: 900; line-height: 1; }
+        .m-top-6 { margin-top: 8px; }
+        
+        .box-accent-border-blue { border-top: 4px solid #3b82f6; }
+        .box-accent-border-emerald { border-top: 4px solid #10b981; }
+        .box-accent-border-amber { border-top: 4px solid #f59e0b; }
+        .box-accent-border-red { border-top: 4px solid #ef4444; }
+        
+        .text-color-blue { color: #2563eb; }
+        .text-color-emerald { color: #059669; }
+        .text-color-amber { color: #d97706; }
+        .text-color-red { color: #dc2626; }
+
+        /* Recharts Graphics Panel Matrices */
+        .ta-charts-main-grid-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+        .card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); overflow: hidden; }
+        .adb-panel-card-container { padding: 24px; }
+        .ta-chart-inner-title { margin: 0 0 20px 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; }
+        .ta-chart-canvas-holder { width: 100%; height: 300px; }
+        
+        /* Live Ledger Columns Lists */
+        .adb-list-panel-title { margin: 0 0 16px 0; font-size: 1rem; font-weight: 800; color: #0f172a; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; }
+        .adb-live-stream-ledger-column { display: flex; flex-direction: column; gap: 12px; max-height: 250px; overflow-y: auto; padding-right: 4px; }
+        .adb-stream-item-row { display: flex; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid #f8fafc; }
+        .adb-stream-item-row:last-child { border-bottom: none; }
+        .padd-left-zero { padding-left: 0; }
+        
+        .adb-avatar-circle-prefix { width: 36px; height: 36px; border-radius: 50%; background-color: #f1f5f9; color: #475569; font-weight: 800; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .adb-stream-meta-text-block { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+        .adb-stream-item-primary-string { font-size: 0.9rem; font-weight: 700; color: #1e293b; }
+        .text-truncate-span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+        .adb-stream-item-secondary-subtext { font-size: 0.75rem; font-weight: 500; color: #64748b; }
+        .sa-text-muted { color: #94a3b8; }
+        .italic-text { font-style: italic; }
+        .padding-top-small { padding-top: 10px; font-size: 0.85rem; }
+        
+        /* Administrative Interactive Systems Grid */
+        .adb-console-section-title { font-size: 1.3rem; font-weight: 900; color: #0f172a; margin: 10px 0 0 0; }
+        .adb-console-links-grid-matrix { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .adb-console-link-card { padding: 24px; text-decoration: none; display: flex; flex-direction: column; justify-content: center; transition: all 0.2s; background: #ffffff; }
+        .adb-console-link-card:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+        .adb-console-card-title { margin: 0 0 6px 0; font-size: 1.05rem; font-weight: 800; color: #0f172a; }
+        .adb-console-card-desc { margin: 0; font-size: 0.85rem; color: #64748b; line-height: 1.4; }
+        
+        /* Dynamic Theme Border Highlights */
+        .cal-border-blue-override { border-left: 4px solid #3b82f6; }
+        .cal-border-pink-override { border-left: 4px solid #ec4899; }
+        .cal-border-amber-override { border-left: 4px solid #f59e0b; }
+        .cal-border-orange-override { border-left: 4px solid #f97316; }
+        .cal-border-red-override { border-left: 4px solid #ef4444; }
+        .cal-border-purple-override { border-left: 4px solid #a855f7; }
+        .cal-border-emerald-override { border-left: 4px solid #10b981; }
+        .cal-border-yellow-override { border-left: 4px solid #eab308; }
+        .cal-border-indigo-override { border-left: 4px solid #6366f1; }
+        
+        /* Scrollbar aesthetics for ledger columns */
+        .adb-live-stream-ledger-column::-webkit-scrollbar { width: 4px; }
+        .adb-live-stream-ledger-column::-webkit-scrollbar-track { background: transparent; }
+        .adb-live-stream-ledger-column::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+        @media (max-width: 900px) {
+          .ta-charts-main-grid-row-2 { grid-template-columns: 1fr; }
+        }
+      `}</style>
     </div>
   );
 };
 
-// ✅ REFACTOR: Structural decoupling offloads volatile inline hover script loops to CSS transitions
 const KPICard = ({ title, value, variant }) => (
   <div className={`sa-stat-node-box box-accent-border-${variant} adb-kpi-hover-card`}>
     <div className="sav-stat-node-label">{title}</div>
