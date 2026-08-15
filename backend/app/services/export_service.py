@@ -4,10 +4,18 @@ import io
 import os
 import re
 import tempfile
+import sys
 import pythoncom
 from docx2pdf import convert
 from datetime import datetime
 #import pythoncom 
+
+if sys.platform.startswith('win'):
+    import pythoncom
+    import win32com.client
+else:
+    pythoncom = None
+    win32com.client = None
 
 class ExportService:
 
