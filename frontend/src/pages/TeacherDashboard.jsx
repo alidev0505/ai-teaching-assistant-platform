@@ -11,7 +11,16 @@ const TeacherDashboard = () => {
   const [selectedSemester, setSelectedSemester] = useState(null);
   const [courses, setCourses] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [newCourseData, setNewCourseData] = useState({ name: '', description: '' });
+  
+  // 👇 UPDATED: Expanded state to include Program, Shift, Catalog Code, and Semester Code
+  const [newCourseData, setNewCourseData] = useState({ 
+    name: '', 
+    description: '',
+    program: '',
+    shift: 'Morning',
+    course_catalog_code: '',
+    semester_code: ''
+  });
   const [error, setError] = useState('');
 
   useEffect(() => { 
@@ -46,7 +55,15 @@ const TeacherDashboard = () => {
     try {
       await createCourse({ ...newCourseData, semester_id: selectedSemester.id });
       setShowModal(false); 
-      setNewCourseData({ name: '', description: '' });
+      // 👇 Reset form data back to defaults
+      setNewCourseData({ 
+        name: '', 
+        description: '',
+        program: '',
+        shift: 'Morning',
+        course_catalog_code: '',
+        semester_code: ''
+      });
       handleSemesterClick(selectedSemester);
     } catch (err) { 
       setError('Curriculum Error: Unable to create new channel instance.'); 
@@ -135,6 +152,34 @@ const TeacherDashboard = () => {
                         {course.code && <span className={`td-course-code-pill course-theme-${themeIndex}`}>{course.code}</span>}
                       </div>
                       <h3 className="td-course-card-title">{course.name}</h3>
+                      
+                      {/* --- METADATA TAGS BLOCK --- */}
+                      <div className="td-course-meta-tags">
+                        {course.course_catalog_code && (
+                          <span className="td-meta-tag catalog-tag">
+                            📖 {course.course_catalog_code}
+                          </span>
+                        )}
+
+                        {course.program && (
+                          <span className="td-meta-tag program-tag">
+                            🏫 {course.program}
+                          </span>
+                        )}
+
+                        {course.semester_code && (
+                          <span className="td-meta-tag semester-code-tag">
+                            🏷️ {course.semester_code}
+                          </span>
+                        )}
+
+                        {course.shift && (
+                          <span className="td-meta-tag shift-tag">
+                            ⏱️ {course.shift === 'M' || course.shift === 'Morning' ? 'Morning' : course.shift === 'E' || course.shift === 'Evening' ? 'Evening' : course.shift}
+                          </span>
+                        )}
+                      </div>
+                      
                       <p className="td-course-card-desc">{course.description || 'No summary introduction cataloged.'}</p>
                       <div className="td-course-footer-row">
                         <span className="td-student-count-indicator">👥 {course.student_count || 0} Enrolled Students</span>
@@ -152,19 +197,48 @@ const TeacherDashboard = () => {
       {/* ── CREATE NEW COURSE MODAL OVERLAY CONSOLE ── */}
       {showModal && (
         <div className="sm-overlay">
-          <div className="sm-modal-card">
+          <div className="sm-modal-card" style={{ maxWidth: '520px' }}>
             <h2 className="sm-modal-title">Create New Course</h2>
             <p className="td-modal-context-subtitle">Assigning target link to: <strong>{selectedSemester?.name}</strong></p>
             
             <form onSubmit={handleCreate} className="sm-form-container">
               <div className="sm-form-group">
-                <label className="sm-form-label">Course Title Name</label>
+                <label className="sm-form-label">Course Title Name *</label>
                 <input type="text" placeholder="e.g., Advanced Machine Learning" value={newCourseData.name} onChange={e => setNewCourseData({ ...newCourseData, name: e.target.value })} className="sm-input" required />
               </div>
+
+              {/* 👇 NEW FIELDS GRID FOR IV, V & DEPARTMENT METRICS 👇 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="sm-form-group">
+                  <label className="sm-form-label">Course Code / ID</label>
+                  <input type="text" placeholder="e.g., CSC-401" value={newCourseData.course_catalog_code} onChange={e => setNewCourseData({ ...newCourseData, course_catalog_code: e.target.value })} className="sm-input" />
+                </div>
+                <div className="sm-form-group">
+                  <label className="sm-form-label">Program</label>
+                  <input type="text" placeholder="e.g., BS Artificial Intelligence" value={newCourseData.program} onChange={e => setNewCourseData({ ...newCourseData, program: e.target.value })} className="sm-input" />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="sm-form-group">
+                  <label className="sm-form-label">Semester / Section</label>
+                  <input type="text" placeholder="e.g., VIII-A" value={newCourseData.semester_code} onChange={e => setNewCourseData({ ...newCourseData, semester_code: e.target.value })} className="sm-input" />
+                </div>
+                <div className="sm-form-group">
+                  <label className="sm-form-label">Shift</label>
+                  <select value={newCourseData.shift} onChange={e => setNewCourseData({ ...newCourseData, shift: e.target.value })} className="sm-input">
+                    <option value="Morning">Morning</option>
+                    <option value="Evening">Evening</option>
+                  </select>
+                </div>
+              </div>
+              {/* 👆 END OF NEW FIELDS GRID 👆 */}
+
               <div className="sm-form-group">
                 <label className="sm-form-label">Course Description Abstract</label>
                 <textarea placeholder="Provide an optional summary overview structural curriculum roadmap..." value={newCourseData.description} onChange={e => setNewCourseData({ ...newCourseData, description: e.target.value })} className="sm-input sm-textarea" />
               </div>
+
               <div className="sm-action-row">
                 <button type="button" onClick={() => setShowModal(false)} className="sm-btn-secondary">Cancel</button>
                 <button type="submit" className="sm-btn-primary">Create Course Space</button>
@@ -246,13 +320,13 @@ const TeacherDashboard = () => {
         .sm-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 2000; }
         .sm-modal-card { width: 100%; max-width: 460px; padding: 32px; background: #ffffff; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); box-sizing: border-box; animation: td-scaleUp 0.2s ease-out; }
         .sm-modal-title { margin: 0 0 8px 0; color: #0f172a; text-align: center; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px; }
-        .sm-form-container { display: flex; flex-direction: column; gap: 16px; }
+        .sm-form-container { display: flex; flex-direction: column; gap: 14px; }
         .sm-form-group { display: flex; flex-direction: column; gap: 6px; }
         .sm-form-label { font-weight: 700; font-size: 0.825rem; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
-        .sm-input { width: 100%; padding: 11px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #0f172a; font-family: inherit; box-sizing: border-box; outline: none; transition: border-color 0.2s; }
+        .sm-input { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.95rem; color: #0f172a; font-family: inherit; box-sizing: border-box; outline: none; transition: border-color 0.2s; background: #ffffff; }
         .sm-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-        .sm-textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
-        .sm-action-row { display: flex; gap: 12px; margin-top: 8px; }
+        .sm-textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+        .sm-action-row { display: flex; gap: 12px; margin-top: 4px; }
         .sm-btn-secondary { flex: 1; padding: 12px; border: 1px solid #cbd5e1; background: #ffffff; color: #475569; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer; font-family: inherit; }
         .sm-btn-secondary:hover { background: #f8fafc; color: #0f172a; }
         .sm-btn-primary { flex: 1; padding: 12px; border: none; background: #2563eb; color: #ffffff; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer; font-family: inherit; box-shadow: 0 4px 10px rgba(37,99,235,0.2); }
@@ -268,6 +342,42 @@ const TeacherDashboard = () => {
           .td-btn-create-course { width: 100%; text-align: center; }
           .td-hero-banner { padding-bottom: 80px; }
           .td-content-workspace { margin-top: -30px; padding: 0 16px; }
+        }
+        /* Course Metadata Tags */
+        .td-course-meta-tags { 
+          display: flex; 
+          gap: 8px; 
+          margin-bottom: 12px; 
+          flex-wrap: wrap; 
+        }
+        .td-meta-tag { 
+          font-size: 0.72rem; 
+          font-weight: 700; 
+          padding: 4px 8px; 
+          border-radius: 6px; 
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .program-tag { 
+          background-color: #e0e7ff; 
+          color: #3730a3; 
+          border: 1px solid #c7d2fe;
+        }
+        .shift-tag { 
+          background-color: #fef3c7; 
+          color: #92400e; 
+          border: 1px solid #fde68a;
+        }
+        .catalog-tag { 
+          background-color: #f3e8ff; 
+          color: #6b21a8; 
+          border: 1px solid #e9d5ff;
+        }
+        .semester-code-tag { 
+          background-color: #dcfce7; 
+          color: #166534; 
+          border: 1px solid #bbf7d0;
         }
       `}</style>
     </div>

@@ -30,6 +30,7 @@ import AdminUsers from './pages/admin/AdminUsers';
 import AdminCourses from './pages/admin/AdminCourses';
 import AdminReports from './pages/admin/AdminReports';
 import AdminDepartments from './pages/admin/AdminDepartments';
+import AdminFeedback from './pages/admin/AdminFeedback';
 import ManageSemesters from './pages/admin/ManageSemesters';
 import AdminClass from './pages/admin/AdminClass';
 import AdminCalendar from './pages/admin/AdminCalendar';
@@ -102,7 +103,7 @@ const AppContent = () => {
         <Route path="/admin/announcements" element={<ProtectedRoute role="admin"><AdminAnnouncements /></ProtectedRoute>} />
         <Route path="/admin/classes" element={<ProtectedRoute role="admin"><AdminClass /></ProtectedRoute>} />
         <Route path="/admin/calendar" element={<ProtectedRoute role="admin"><AdminCalendar /></ProtectedRoute>} />
-
+        <Route path="/admin/feedback" element={<ProtectedRoute role="admin"><AdminFeedback /></ProtectedRoute>} />
         <Route path="*" element={getDashboardRedirect()} />
       </Routes>
       </div>

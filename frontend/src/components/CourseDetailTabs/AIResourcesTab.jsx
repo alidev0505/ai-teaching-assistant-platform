@@ -1,17 +1,119 @@
 import React, { useState } from 'react';
+import jsPDF from 'jspdf';
 
 const AIResourcesTab = ({ generatedResources = [], handleDeleteResource }) => {
   const [copiedId, setCopiedId] = useState(null);
+  const [activeMenuId, setActiveMenuId] = useState(null);
 
-  const handleCopyToClipboard = (content, id) => {
-    if (!content) return;
-    navigator.clipboard.writeText(content);
-    setCopiedId(id);
+  const getResourceContent = (res) => {
+    if (!res) return '';
+    return res.content || res.text || res.body || res.summary || res.description || '';
+  };
+
+  const handleCopyToClipboard = async (content, id) => {
+    if (!content) {
+      console.warn("Nothing to copy: 'content' is empty or undefined.");
+      return;
+    }
+
+    const textToCopy = typeof content === 'object' ? JSON.stringify(content, null, 2) : String(content);
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(textToCopy);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        
+        textArea.focus();
+        textArea.select();
+        
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+
+        if (!successful) {
+          throw new Error('Fallback copy command was unsuccessful');
+        }
+      }
+
+      setCopiedId(id);
+      setTimeout(() => {
+        setCopiedId(null);
+      }, 2000);
+
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  // 📄 1. Export as PDF
+  const handleDownloadPDF = (title, content) => {
+    const doc = new jsPDF({
+      orientation: 'p',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const cleanTitle = title || 'AI Generated Resource';
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text(cleanTitle, 15, 20);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
     
-    // Clear micro-interaction states automatically after a short window
-    setTimeout(() => {
-      setCopiedId(null);
-    }, 2000);
+    // Split long body content into multiple wrapped lines for A4 page width
+    const lines = doc.splitTextToSize(content || 'No content provided.', 180);
+    doc.text(lines, 15, 30);
+
+    const safeFilename = cleanTitle.toLowerCase().replace(/[^a-z0-0]/gi, '_');
+    doc.save(`${safeFilename}.pdf`);
+    setActiveMenuId(null);
+  };
+
+  // 📝 2. Export as Word (.docx)
+  const handleDownloadWord = (title, content) => {
+    const cleanTitle = title || 'AI Generated Resource';
+    
+    // Construct valid HTML structure that MS Word parses directly
+    const htmlContent = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>${cleanTitle}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 30px; color: #1e293b; line-height: 1.6; }
+          h1 { color: #0f172a; font-size: 20pt; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+          p { font-size: 11pt; white-space: pre-wrap; }
+        </style>
+      </head>
+      <body>
+        <h1>${cleanTitle}</h1>
+        <p>${(content || 'No content provided.').replace(/\n/g, '<br/>')}</p>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob(['\ufeff', htmlContent], {
+      type: 'application/msword'
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeFilename = cleanTitle.toLowerCase().replace(/[^a-z0-9]/gi, '_');
+    
+    link.href = url;
+    link.download = `${safeFilename}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    setActiveMenuId(null);
   };
 
   const getResourceTitle = (type) => {
@@ -36,39 +138,80 @@ const AIResourcesTab = ({ generatedResources = [], handleDeleteResource }) => {
         </div>
       ) : (
         <div className="rt-grid-layout">
-          {generatedResources.map(res => (
-            <div key={res.id} className="rt-resource-card">
-              <div className="rt-card-header">
-                <span className={`rt-badge rt-badge-${String(res.type).toLowerCase()}`}>
-                  {res.type || 'AI'}
-                </span>
-                <button 
-                  onClick={() => handleDeleteResource(res.id)} 
-                  className="rt-delete-btn"
-                  title="Remove resource item"
-                >
-                  🗑️
-                </button>
+          {generatedResources.filter(Boolean).map((res, index) => {
+            const resourceId = res.id || index;
+            const resourceType = res.type ? String(res.type).toLowerCase() : 'ai';
+            const resourceContent = getResourceContent(res);
+            const cardTitle = res.material_title || getResourceTitle(res.type);
+
+            return (
+              <div key={resourceId} className="rt-resource-card">
+                <div className="rt-card-header">
+                  <span className={`rt-badge rt-badge-${resourceType}`}>
+                    {res.type || 'AI'}
+                  </span>
+                  {handleDeleteResource && (
+                    <button 
+                      onClick={() => handleDeleteResource(resourceId)} 
+                      className="rt-delete-btn"
+                      title="Remove resource item"
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </div>
+                
+                <h3 className="rt-card-title">{cardTitle}</h3>
+                
+                <p className="rt-card-body-content">{resourceContent || 'No content available.'}</p>
+                
+                <div className="rt-card-footer">
+                  <span className="rt-timestamp">📅 {res.created_at || res.date || 'Recent Log'}</span>
+                  
+                  <div className="rt-action-buttons">
+                    <button 
+                      onClick={() => handleCopyToClipboard(resourceContent, resourceId)} 
+                      className={`rt-copy-action-btn ${copiedId === resourceId ? 'rt-copied-state' : ''}`}
+                    >
+                      {copiedId === resourceId ? '✓ Copied!' : '📋 Copy'}
+                    </button>
+
+                    {/* Download Dropdown Container */}
+                    <div className="rt-download-wrapper">
+                      <button 
+                        onClick={() => setActiveMenuId(activeMenuId === resourceId ? null : resourceId)}
+                        className="rt-download-trigger-btn"
+                        title="Download options"
+                      >
+                        📥 Download ▾
+                      </button>
+
+                      {activeMenuId === resourceId && (
+                        <div className="rt-download-menu">
+                          <button 
+                            onClick={() => handleDownloadPDF(cardTitle, resourceContent)}
+                            className="rt-menu-item"
+                          >
+                            📄 Save as PDF
+                          </button>
+                          <button 
+                            onClick={() => handleDownloadWord(cardTitle, resourceContent)}
+                            className="rt-menu-item"
+                          >
+                            📝 Save as Word (.doc)
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-              
-              <h3 className="rt-card-title">{getResourceTitle(res.type)}</h3>
-              <p className="rt-card-body-content">{res.content}</p>
-              
-              <div className="rt-card-footer">
-                <span className="rt-timestamp">📅 {res.date || 'Recent Log'}</span>
-                <button 
-                  onClick={() => handleCopyToClipboard(res.content, res.id)} 
-                  className={`rt-copy-action-btn ${copiedId === res.id ? 'rt-copied-state' : ''}`}
-                >
-                  {copiedId === res.id ? '✓ Copied!' : '📋 Copy Text'}
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* ── COMPONENT SELF-CONTAINED EMBEDDED STYLES MATRIX ── */}
+      {/* ── COMPONENT STYLES ── */}
       <style>{`
         .rt-main-wrapper {
           width: 100%;
@@ -77,7 +220,6 @@ const AIResourcesTab = ({ generatedResources = [], handleDeleteResource }) => {
           animation: rt-fadeIn 0.2s ease-out;
         }
 
-        /* Responsive Dashboard Card Grid Matrix */
         .rt-grid-layout {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
@@ -111,7 +253,6 @@ const AIResourcesTab = ({ generatedResources = [], handleDeleteResource }) => {
           width: 100%;
         }
 
-        /* Semantic Category Badge Vectors */
         .rt-badge {
           display: inline-block;
           font-size: 0.725rem;
@@ -151,7 +292,6 @@ const AIResourcesTab = ({ generatedResources = [], handleDeleteResource }) => {
           letter-spacing: -0.02em;
         }
 
-        /* Body Typography and Line Clamp Bounds */
         .rt-card-body-content {
           margin: 0;
           font-size: 0.9rem;
@@ -164,9 +304,9 @@ const AIResourcesTab = ({ generatedResources = [], handleDeleteResource }) => {
           text-overflow: ellipsis;
           white-space: normal;
           flex-grow: 1;
+          word-break: break-word;
         }
 
-        /* Footer Alignment & Micro-interaction Copy States */
         .rt-card-footer {
           display: flex;
           justify-content: space-between;
@@ -174,7 +314,7 @@ const AIResourcesTab = ({ generatedResources = [], handleDeleteResource }) => {
           padding-top: 14px;
           border-top: 1px solid #f1f5f9;
           margin-top: auto;
-          gap: 12px;
+          gap: 8px;
         }
 
         .rt-timestamp {
@@ -183,15 +323,20 @@ const AIResourcesTab = ({ generatedResources = [], handleDeleteResource }) => {
           font-weight: 600;
         }
 
-        .rt-copy-action-btn {
+        .rt-action-buttons {
+          display: flex;
+          gap: 6px;
+          align-items: center;
+        }
+
+        .rt-copy-action-btn, .rt-download-trigger-btn {
           background-color: #f1f5f9;
           border: 1px solid #cbd5e1;
           color: #475569;
-          padding: 6px 14px;
+          padding: 6px 12px;
           border-radius: 6px;
-          font-size: 0.8rem;
+          font-size: 0.775rem;
           font-weight: 700;
-          cursor: pointer;
           font-family: inherit;
           transition: all 0.15s ease;
           height: 32px;
@@ -200,9 +345,10 @@ const AIResourcesTab = ({ generatedResources = [], handleDeleteResource }) => {
           justify-content: center;
           box-sizing: border-box;
           white-space: nowrap;
+          cursor: pointer;
         }
 
-        .rt-copy-action-btn:hover:not(.rt-copied-state) {
+        .rt-copy-action-btn:hover:not(.rt-copied-state), .rt-download-trigger-btn:hover {
           background-color: #e2e8f0;
           color: #0f172a;
           border-color: #94a3b8;
@@ -212,10 +358,52 @@ const AIResourcesTab = ({ generatedResources = [], handleDeleteResource }) => {
           background-color: #ecfdf5;
           color: #059669;
           border-color: #a7f3d0;
-          cursor: default;
         }
 
-        /* Empty Tab Layout Fallback Card */
+        .rt-download-wrapper {
+          position: relative;
+        }
+
+        .rt-download-menu {
+          position: absolute;
+          bottom: 100%;
+          right: 0;
+          margin-bottom: 6px;
+          background-color: #ffffff;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+          display: flex;
+          flex-direction: column;
+          min-width: 160px;
+          z-index: 10;
+          overflow: hidden;
+        }
+
+        .rt-menu-item {
+          background: transparent;
+          border: none;
+          padding: 10px 14px;
+          text-align: left;
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: #334155;
+          cursor: pointer;
+          transition: background-color 0.15s;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .rt-menu-item:hover {
+          background-color: #f8fafc;
+          color: #0f172a;
+        }
+
+        .rt-menu-item:not(:last-child) {
+          border-bottom: 1px solid #f1f5f9;
+        }
+
         .rt-empty-state {
           padding: 60px 24px;
           background-color: #ffffff;
@@ -255,7 +443,6 @@ const AIResourcesTab = ({ generatedResources = [], handleDeleteResource }) => {
           to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Mobile Layout Adjustments */
         @media (max-width: 480px) {
           .rt-resource-card {
             padding: 20px;

@@ -4,7 +4,12 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
-from duckduckgo_search import DDGS
+
+# Safely import DDGS supporting both old and new package structures
+try:
+    from ddgs import DDGS
+except ImportError:
+    from duckduckgo_search import DDGS
 
 class AssessmentService:
     
@@ -36,7 +41,6 @@ class AssessmentService:
         }
 
         # --- STEP 1: AI DETECTION ---
-        # This function automatically selects the provider based on the config above
         ai_score = AssessmentService.check_ai_generated(student_text)
         results['ai_score'] = round(ai_score * 100, 1)
         
@@ -104,8 +108,7 @@ class AssessmentService:
     @staticmethod
     def _check_huggingface_free(text):
         """
-        FREE: Uses 'RoBERTa Large' via Hugging Face Inference API.
-        Best free option available.
+        FREE: Uses 'RoBERTa Large' via Hugging Face Inference API with fallback timeout protection.
         """
         token = os.getenv('HF_API_TOKEN')
         if not token:
@@ -113,11 +116,11 @@ class AssessmentService:
             return 0.0
 
         headers = {"Authorization": f"Bearer {token}"}
-        # Truncate text to fit model context (approx 512 tokens)
         payload = {"inputs": text[:1500]} 
 
         try:
-            response = requests.post(AssessmentService.HF_MODEL_URL, headers=headers, json=payload)
+            # Added timeout=5 to prevent thread hanging on offline DNS errors
+            response = requests.post(AssessmentService.HF_MODEL_URL, headers=headers, json=payload, timeout=5)
             data = response.json()
             
             # Error Handling (Model Loading)
@@ -132,17 +135,11 @@ class AssessmentService:
                         return item['score'] 
             return 0.0
         except Exception as e:
-            print(f"AI Check Error: {e}")
+            print(f"ℹ️ AI Check Bypassed (Network/Timeout Error): {e}")
             return 0.0
 
     @staticmethod
     def _check_gptzero_paid(text):
-        """
-        PAID: Placeholder for GPTZero API integration.
-        To use this:
-        1. Get API Key from GPTZero
-        2. Change AI_DETECTION_PROVIDER = 'GPTZERO'
-        """
         print("⚠️ Paid Module Not Configured Yet")
         return 0.0
 
@@ -169,14 +166,13 @@ class AssessmentService:
     @staticmethod
     def check_external_plagiarism(text):
         """
-        Checks text chunk against web engines safely, avoiding runtime IP bans.
+        Checks text chunk against web engines safely, avoiding runtime IP bans or timeout blocks.
         """
         try:
             words = text.split()
             if len(words) < 20: return 0.0
             
             start_idx = len(words) // 3
-            # Keep the search phrase highly targeted (max 20 words) to prevent API payload errors
             chunk = " ".join(words[start_idx : start_idx + 20]).strip()
             
             with DDGS(timeout=5) as ddgs:
@@ -185,7 +181,6 @@ class AssessmentService:
                     return 1.0 
             return 0.0
         except Exception as e:
-            # Silently log network blockages without throwing 500 runtime faults to the grading stream
             print(f"ℹ️ Web lookup bypassed safely: {e}")
             return 0.0
 

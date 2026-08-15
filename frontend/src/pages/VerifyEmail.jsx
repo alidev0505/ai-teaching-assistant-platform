@@ -54,13 +54,7 @@ const VerifyEmail = () => {
   return (
     <div className="ve-page-wrapper">
       
-      {/* Structural Brand Navigation Header */}
-      <nav className="ve-navbar">
-        <Link to="/" className="ve-nav-brand-link">
-          <div className="ve-logo-badge">🎓</div>
-          <span className="ve-brand-text">AI Teaching Assistant</span>
-        </Link>
-      </nav>
+      
 
       {/* Main Response Verification Container Core */}
       <div className="ve-body-layout">

@@ -26,6 +26,7 @@ const Attendance = () => {
   const [isLocked, setIsLocked] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [systemAlert, setSystemAlert] = useState({ type: '', text: '' });
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => { 
     fetchCourseDetails(); 
@@ -69,23 +70,23 @@ const Attendance = () => {
     }
   };
 
-  const markAllPresent = () => {
-    if (isLocked) return;
-    const newMap = {};
-    students.forEach(s => newMap[s.id] = 'Present');
-    setAttendanceMap(newMap);
-  };
-
-  const toggleStatus = (studentId) => {
+  const markRemainingPresent = () => {
     if (isLocked) return;
     setAttendanceMap(prev => {
-      const current = prev[studentId];
-      let nextStatus = 'Present';
-      if (current === 'Present') nextStatus = 'Absent';
-      else if (current === 'Absent') nextStatus = 'Late';
-      else if (current === 'Late') nextStatus = 'Present';
-      return { ...prev, [studentId]: nextStatus };
+      const newMap = { ...prev };
+      students.forEach(s => {
+        // Only mark them 'Present' if they don't have a status yet!
+        if (!newMap[s.id]) {
+          newMap[s.id] = 'Present';
+        }
+      });
+      return newMap;
     });
+  };
+
+  const setStudentStatus = (studentId, status) => {
+    if (isLocked) return;
+    setAttendanceMap(prev => ({ ...prev, [studentId]: status }));
   };
 
   const saveAttendance = async () => {
@@ -151,6 +152,17 @@ const Attendance = () => {
     return 'status-pending';
   };
 
+  const handleSessionChange = (e) => {
+    // 1. Convert the string to a Number so React matches the <option> value
+    const newSession = Number(e.target.value);
+    setSession(newSession);
+
+    // 2. Wipe the sheet clean for the new session
+    const blankMap = {};
+    students.forEach(s => blankMap[s.id] = null);
+    setAttendanceMap(blankMap);
+  };
+
   const COLORS = { Present: '#10b981', Absent: '#ef4444', Late: '#f59e0b' };
 
   return (
@@ -199,14 +211,31 @@ const Attendance = () => {
                 </div>
                 <div className="auth-form-group amt-input-adjustment">
                   <label className="amt-input-form-label">Lecture Session Number</label>
-                  <select value={session} onChange={(e) => setSession(e.target.value)} disabled={isLocked} className="rp-input-field select-cursor-pointer">
+                  <select value={session} onChange={handleSessionChange} disabled={isLocked} className="rp-input-field select-cursor-pointer">
                     {[...Array(16)].map((_, i) => <option key={i} value={i + 1}>Session {i + 1}</option>)}
                   </select>
                 </div>
                 {!isLocked && (
-                  <button onClick={markAllPresent} className="btn-secondary amt-btn-bulk-action-present">Mark All Present</button>
+                  <button onClick={markRemainingPresent} className="btn-secondary amt-btn-bulk-action-present">Mark Unmarked as Present</button>
                 )}
               </div>
+            </div>
+
+            {/* Live Status Counter */}
+            <input 
+              type="text" 
+              placeholder="🔍 Search by name or ID..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="rp-input-field"
+              style={{ marginBottom: '15px' }}
+            />
+            <div className="amt-live-summary">
+              <strong>Live Summary:</strong> 
+              <span className="summary-p"> {Object.values(attendanceMap).filter(v => v === 'Present').length} Present</span>
+              <span className="summary-a"> {Object.values(attendanceMap).filter(v => v === 'Absent').length} Absent</span>
+              <span className="summary-l"> {Object.values(attendanceMap).filter(v => v === 'Late').length} Late</span>
+              <span className="summary-pending"> {students.length - Object.values(attendanceMap).filter(Boolean).length} Unmarked</span>
             </div>
 
             <div className="table-card amt-table-card-border-fix">
@@ -221,21 +250,49 @@ const Attendance = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {students.map((student) => (
-                        <tr key={student.id} className="amt-table-row-node">
-                          <td className="id-cell">{student.university_id || 'BAI-N/A'}</td>
-                          <td className="name-cell">{student.username}</td>
-                          <td className="amt-th-center-align">
-                            <button 
-                              onClick={() => toggleStatus(student.id)} 
-                              className={`status-pill ${getBadgeClass(attendanceMap[student.id])}`}
-                              disabled={isLocked}
-                            >
-                              {attendanceMap[student.id] || 'Pending'}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {students.filter(s => 
+                          (s.username && s.username.toLowerCase().includes(searchQuery.toLowerCase())) || 
+                          (s.university_id && s.university_id.toLowerCase().includes(searchQuery.toLowerCase()))
+                      ).map((student) => {
+                        const currentStatus = attendanceMap[student.id];
+                        // Highlight the whole row based on status
+                        const rowClass = currentStatus === 'Absent' ? 'amt-row-absent' 
+                                       : currentStatus === 'Present' ? 'amt-row-present'
+                                       : currentStatus === 'Late' ? 'amt-row-late' 
+                                       : '';
+
+                        return (
+                          <tr key={student.id} className={`amt-table-row-node ${rowClass}`}>
+                            <td className="id-cell">{student.university_id || 'BAI-N/A'}</td>
+                            <td className="name-cell">{student.username}</td>
+                            <td className="amt-th-center-align">
+                              <div className="amt-action-group">
+                                <button 
+                                  onClick={() => setStudentStatus(student.id, 'Present')} 
+                                  className={`amt-quick-btn amt-btn-p ${currentStatus === 'Present' ? 'active' : ''}`}
+                                  disabled={isLocked}
+                                >
+                                  Present
+                                </button>
+                                <button 
+                                  onClick={() => setStudentStatus(student.id, 'Absent')} 
+                                  className={`amt-quick-btn amt-btn-a ${currentStatus === 'Absent' ? 'active' : ''}`}
+                                  disabled={isLocked}
+                                >
+                                  Absent
+                                </button>
+                                <button 
+                                  onClick={() => setStudentStatus(student.id, 'Late')} 
+                                  className={`amt-quick-btn amt-btn-l ${currentStatus === 'Late' ? 'active' : ''}`}
+                                  disabled={isLocked}
+                                >
+                                  Late
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -415,6 +472,31 @@ const Attendance = () => {
         .rp-input-field { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; color: #0f172a; background-color: #ffffff; outline: none; box-sizing: border-box; font-family: inherit; transition: border-color 0.15s; height: 42px; }
         .rp-input-field:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
         .select-cursor-pointer { cursor: pointer; }
+
+        /* --- NEW UX STYLES --- */
+        .amt-action-group { display: flex; gap: 8px; justify-content: center; }
+        .amt-quick-btn { padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; border: 1px solid #cbd5e1; background: #ffffff; color: #64748b; transition: all 0.15s; font-family: inherit; text-transform: uppercase; letter-spacing: 0.5px; }
+        .amt-quick-btn:hover:not(:disabled) { background: #f1f5f9; border-color: #94a3b8; color: #0f172a; }
+        .amt-quick-btn:disabled { cursor: not-allowed; opacity: 0.6; }
+        
+        /* Active States */
+        .amt-btn-p.active { background: #10b981; border-color: #10b981; color: #ffffff; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3); }
+        .amt-btn-a.active { background: #ef4444; border-color: #ef4444; color: #ffffff; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3); }
+        .amt-btn-l.active { background: #f59e0b; border-color: #f59e0b; color: #ffffff; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3); }
+
+        /* Row Highlighting */
+        .amt-table-row-node { transition: background-color 0.2s ease; }
+        .amt-row-present { background-color: #f0fdf4 !important; }
+        .amt-row-absent { background-color: #fef2f2 !important; }
+        .amt-row-late { background-color: #fffbeb !important; }
+
+        /* Live Summary Bar */
+        .amt-live-summary { display: flex; gap: 16px; margin-bottom: 12px; font-size: 0.85rem; background: #ffffff; padding: 12px 20px; border-radius: 10px; border: 1px solid #e2e8f0; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .amt-live-summary strong { color: #0f172a; margin-right: 8px; }
+        .summary-p { color: #059669; font-weight: 600; }
+        .summary-a { color: #dc2626; font-weight: 600; }
+        .summary-l { color: #d97706; font-weight: 600; }
+        .summary-pending { color: #64748b; font-weight: 600; }
 
         @keyframes amt-fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes amt-slideIn { from { transform: translate(-50%, 15px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }

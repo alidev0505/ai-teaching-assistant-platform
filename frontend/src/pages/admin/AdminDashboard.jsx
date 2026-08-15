@@ -168,7 +168,7 @@ const AdminDashboard = () => {
         
         <div className="adb-console-links-grid-matrix">
             <Link to="/admin/users" className="card adb-console-link-card cal-border-blue-override">
-                <div><h3 className="adb-console-card-title">Users Profile Deck</h3><p className="adb-console-card-desc">Privileges, System Role Mapping & Access Security</p></div>
+                <div><h3 className="adb-console-card-title">Users Management</h3><p className="adb-console-card-desc">Privileges, System Role Mapping & Access Security</p></div>
             </Link>
 
             <Link to="/admin/classes" className="card adb-console-link-card cal-border-pink-override">
@@ -184,23 +184,23 @@ const AdminDashboard = () => {
             </Link>
 
             <Link to="/admin/announcements" className="card adb-console-link-card cal-border-red-override">
-                <div><h3 className="adb-console-card-title">Global Broadcast</h3><p className="adb-console-card-desc">Publish Alphanumeric Announcement Banner Channels</p></div>
+                <div><h3 className="adb-console-card-title">System Message Broadcast</h3><p className="adb-console-card-desc">Publish Alphanumeric Announcement Banner Channels</p></div>
             </Link>
 
             <Link to="/admin/calendar" className="card adb-console-link-card cal-border-purple-override">
-                <div><h3 className="adb-console-card-title">Interactive Matrix</h3><p className="adb-console-card-desc">Complete Calendar Weekly Partition Visual Flow</p></div>
+                <div><h3 className="adb-console-card-title">Academic Calender</h3><p className="adb-console-card-desc">Complete Calendar Weekly Partition Visual Flow</p></div>
             </Link>
 
             <Link to="/admin/departments" className="card adb-console-link-card cal-border-emerald-override">
-                <div><h3 className="adb-console-card-title">Faculty Workgroups</h3><p className="adb-console-card-desc">Programs Classification Core, Branches & Structures</p></div>
+                <div><h3 className="adb-console-card-title">Academic Departments</h3><p className="adb-console-card-desc">Programs Classification Core, Branches & Structures</p></div>
             </Link>
 
             <Link to="/admin/feedback" className="card adb-console-link-card cal-border-yellow-override">
-                <div><h3 className="adb-console-card-title">Quality Assurance</h3><p className="adb-console-card-desc">Analyze Student Course Reviews Evaluation Data</p></div>
+                <div><h3 className="adb-console-card-title">Course and Teacher Reviews</h3><p className="adb-console-card-desc">Analyze Student Course Reviews Evaluation Data</p></div>
             </Link>
 
             <Link to="/admin/reports" className="card adb-console-link-card cal-border-indigo-override">
-                <div><h3 className="adb-console-card-title">System Metrics</h3><p className="adb-console-card-desc">Compute Infrastructure Load & RAG Storage Footprints</p></div>
+                <div><h3 className="adb-console-card-title">System Reports</h3><p className="adb-console-card-desc">Compute Infrastructure Load & RAG Storage Footprints</p></div>
             </Link>
         </div>
 

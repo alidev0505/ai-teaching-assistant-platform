@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://ai-teaching-backend-bcefdeexdfg4decz.westeurope-01.azurewebsites.net';
@@ -9,11 +9,16 @@ const TakeQuiz = () => {
 
   const [quiz, setQuiz] = useState(null);
   const [answers, setAnswers] = useState({}); 
+  
+  // 👇 NEW: We use a Ref to track answers for emergency auto-submits so it never submits blank!
+  const answersRef = useRef({}); 
+  
   const [timeLeft, setTimeLeft] = useState(null); 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
+  // 1. Initial Load & Setup
   useEffect(() => {
     const fetchQuiz = async () => {
       const token = localStorage.getItem('token');
@@ -24,7 +29,9 @@ const TakeQuiz = () => {
         const data = await res.json();
         if (res.ok) {
           setQuiz(data.quiz);
-          setTimeLeft(data.quiz.time_limit * 60);
+          // Set timer based on question array length (1 min per question)
+          const qCount = Array.isArray(data.quiz.questions) ? data.quiz.questions.length : 10;
+          setTimeLeft(qCount * 60); 
         } else {
           setErrorMsg(data.error || "Verification failure: Failed to pull quiz data elements.");
         }
@@ -38,43 +45,19 @@ const TakeQuiz = () => {
     fetchQuiz();
   }, [quizId]);
 
+  // 2. Prevent accidental browser close/reload
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      if (Object.keys(answers).length > 0 && !submitting) {
+      if (Object.keys(answersRef.current).length > 0 && !submitting) {
         e.preventDefault();
         e.returnValue = 'Warning: Active evaluation records state changes are uncommitted. Confirm exit operation?';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [answers, submitting]);
+  }, [submitting]);
 
-  useEffect(() => {
-    if (timeLeft === null || timeLeft <= 0) return;
-    const timerId = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerId);
-          handleAutoSubmit(); 
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timerId);
-  }, [timeLeft]);
-
-  const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
-  };
-
-  const handleSelect = (qId, optionKey) => {
-    if (submitting) return;
-    setAnswers(prev => ({ ...prev, [qId]: optionKey }));
-  };
-
+  // 3. Central Submission Logic
   const handleSubmit = async (isAuto = false) => {
     if (submitting) return; 
     setSubmitting(true);
@@ -84,12 +67,14 @@ const TakeQuiz = () => {
       const res = await fetch(`${API_URL}/api/quiz/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ quiz_id: quizId, answers: answers })
+        body: JSON.stringify({ quiz_id: quizId, answers: answersRef.current }) // Uses the Ref to guarantee latest answers
       });
       const result = await res.json();
       
       if (res.ok) {
-        alert(`🎉 Assessment Processed!\nScore Summary Metrics: ${result.correct}/${result.total} (${result.score}%)`);
+        if (!isAuto) {
+          alert(`🎉 Assessment Processed!\nScore Summary Metrics: ${result.correct}/${result.total} (${Number(result.score).toFixed(2)}%)`);
+        }
         const redirectId = quiz?.course_id || localStorage.getItem('last_course_id');
         navigate(redirectId ? `/course/${redirectId}` : '/student');
       } else {
@@ -102,9 +87,52 @@ const TakeQuiz = () => {
     }
   };
 
-  const handleAutoSubmit = () => {
-    console.warn("Countdown parameter expired boundary. Initializing automatic system submission layout logic.");
-    handleSubmit(true);
+  // 4. ANTI-CHEAT: Detect Tab Switching
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && quiz && !submitting && timeLeft > 0) {
+        alert("🛑 ANTI-CHEAT TRIGGERED: You left the quiz tab! Your test has been disqualified and automatically submitted.");
+        handleSubmit(true);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [quiz, submitting, timeLeft]);
+
+  // 5. ROCK-SOLID TIMER COUNTDOWN
+  useEffect(() => {
+    if (timeLeft === null || timeLeft <= 0 || submitting) return;
+    
+    const timerId = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerId);
+          console.warn("Time expired. Auto-submitting.");
+          handleSubmit(true); 
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    // Only resets if the component unmounts, preventing freezes
+    return () => clearInterval(timerId); 
+  }, [timeLeft === null, submitting]);
+
+  const formatTime = (seconds) => {
+    if (seconds === null || isNaN(seconds)) return "--:--";
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const handleSelect = (qId, optionKey) => {
+    if (submitting) return;
+    setAnswers(prev => {
+      const updated = { ...prev, [qId]: optionKey };
+      answersRef.current = updated; // Syncs the ref so Auto-Submit always has your latest click!
+      return updated;
+    });
   };
 
   if (loading) return (
@@ -154,9 +182,14 @@ const TakeQuiz = () => {
             <span className="tq-hide-mobile">{quiz.deadline ? `Target Deadline: ${new Date(quiz.deadline).toLocaleDateString()}` : 'Institutional Session Testing'}</span>
           </div>
           
-          <div className={`tq-timer-box-indicator ${timeLeft < 60 ? 'tq-timer-state-urgent' : ''}`}>
-            <span className="tq-hide-mobile">TIME REMAINING:</span>
-            <span className="tq-timer-numerical-value">{formatTime(timeLeft)}</span>
+          {/* 👇 THE BULLETPROOF TIMER UI 👇 */}
+          <div 
+            className={`tq-timer-box-indicator ${timeLeft !== null && timeLeft < 60 ? 'tq-timer-state-urgent' : ''}`}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f1f5f9', padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '1.2rem', fontWeight: '900', color: '#0f172a' }}
+          >
+            <span style={{ fontSize: '1.2rem' }}>⏱️</span>
+            <span className="tq-hide-mobile" style={{ fontSize: '0.75rem', fontWeight: '800', color: '#475569', letterSpacing: '0.5px' }}>TIME REMAINING:</span>
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatTime(timeLeft)}</span>
           </div>
         </div>
       </header>
@@ -211,14 +244,14 @@ const TakeQuiz = () => {
         .tq-page-wrapper { background-color: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; font-family: 'Inter', sans-serif; }
         
         /* Sticky Top Header Realtime Countdown Timer Box */
-        .tq-sticky-header { position: fixed; top: 0; left: 0; right: 0; height: 72px; background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid #e2e8f0; z-index: 1000; display: flex; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
+        .tq-sticky-header { position: fixed; top: 70px; left: 0; right: 0; height: 72px; background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid #e2e8f0; z-index: 1000; display: flex; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
         .tq-header-container { max-width: 840px; width: 100%; margin: 0 auto; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; }
         
         .tq-quiz-meta-block { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
         .tq-quiz-title-text { margin: 0; font-size: 1.15rem; font-weight: 800; color: #0f172a; letter-spacing: -0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .tq-quiz-meta-block span { color: #64748b; font-size: 0.775rem; font-weight: 600; }
         
-        .tq-timer-box-indicator { display: flex; align-items: center; gap: 8px; background-color: #f1f5f9; padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; flex-shrink: 0; }
+        .tq-timer-box-indicator { display: flex; align-items: center; background-color: #f1f5f9; padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; flex-shrink: 0; }
         .tq-timer-box-indicator .tq-hide-mobile { font-size: 0.725rem; font-weight: 800; color: #475569; letter-spacing: 0.5px; }
         .tq-timer-numerical-value { font-size: 1.1rem; font-weight: 900; color: #0f172a; font-variant-numeric: tabular-nums; }
         
@@ -227,7 +260,7 @@ const TakeQuiz = () => {
         .tq-timer-box-indicator.tq-timer-state-urgent .tq-timer-numerical-value { color: #dc2626; }
         
         /* Layout Main Grid Matrix Cards Array */
-        .tq-main-content-layout { max-width: 840px; width: 100%; margin: 72px auto 0; padding: 32px 24px 110px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px; }
+        .tq-main-content-layout { max-width: 840px; width: 100%; margin: 150px auto 0; padding: 32px 24px 110px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px; }
         .tq-question-card-node { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.01); display: flex; flex-direction: column; gap: 20px; }
         
         .tq-question-text-row { display: flex; gap: 14px; align-items: flex-start; }
@@ -267,6 +300,7 @@ const TakeQuiz = () => {
         /* Mobile Viewport Shifters Adapters scaling rules triggers */
         @media (max-width: 640px) {
           .tq-hide-mobile { display: none !important; }
+          .tq-sticky-header { top: 60px; height: 60px; }
           .tq-sticky-header { height: 60px; }
           .tq-main-content-layout { margin-top: 60px; padding: 16px 16px 96px; gap: 16px; }
           .tq-question-card-node { padding: 20px; gap: 14px; }

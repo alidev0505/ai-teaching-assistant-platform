@@ -23,6 +23,9 @@ def create_app():
         r"/*": {
             "origins": [
                 "http://localhost:5173", 
+                "http://127.0.0.1:5173",        # 👈 ADDED THIS
+                "http://localhost:5000",        # 👈 ADDED THIS (Just in case)
+                "http://127.0.0.1:5000",        # 👈 ADDED THIS
                 "https://ai-teaching-assistant-ecru.vercel.app"
             ],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],

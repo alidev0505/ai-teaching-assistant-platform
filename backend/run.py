@@ -1,9 +1,13 @@
 import os
 import sys
+from dotenv import load_dotenv
+load_dotenv()
 
 # Suppress deep library diagnostic logs
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
+
 
 from app import create_app
 
@@ -21,4 +25,5 @@ if __name__ == '__main__':
     is_debug = os.getenv('FLASK_DEBUG', 'False').lower() in ['true', '1']
     
     # Port assignment naturally shifts cleanly behind Gunicorn on Azure hosting environments
-    app.run(debug=is_debug, port=5000, use_reloader=False)
+    # 👇 Changed from 5000 to 5001
+    app.run(debug=is_debug, port=5005, use_reloader=False)

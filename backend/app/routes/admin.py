@@ -175,7 +175,12 @@ def upload_schedule_csv():
                     'name': instructor_name, 'email': email, 'password': temp_pass
                 })
 
-            course = Course.query.filter_by(name=course_name, semester_code=semester_val).first()
+            course = Course.query.filter_by(
+                name=course_name, 
+                semester_code=semester_val,
+                program=clean_row.get('Program'), # Differentiates BSCS I-B from BSCY I-A
+                shift=clean_row.get('Shift')      # Differentiates Morning (M) from Evening (E)
+            ).first()
             
             if not course:
                 unique_class_code = str(random.randint(10000, 99999))

@@ -70,7 +70,7 @@ const Profile = () => {
       const r = await getProfileStats(); 
       setStats(r?.data?.stats || null); 
     } catch (err) { 
-      console.error("Failed to sync structural profile dashboard metrics.", err);
+      console.error("Failed to load profile stats.", err);
     }
   };
 
@@ -78,15 +78,21 @@ const Profile = () => {
   const handlePicture = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) return alert('Target file limit warning: Image footprint must remain under 2 MB.');
+    
+    // 👇 Smooth UI error instead of harsh browser alert
+    if (file.size > 2 * 1024 * 1024) {
+      setSaveMsg({ type: 'error', text: 'Image is too large. Please choose a file under 2 MB.' });
+      return;
+    }
     
     const reader = new FileReader();
     reader.onload = (ev) => {
       if (ev?.target?.result) {
         setForm(f => ({ ...f, profile_picture: ev.target.result }));
+        setSaveMsg(null); // Clear any previous errors
       }
     };
-    reader.onerror = () => alert('Processing Error: Stalled reading target image binary data streams.');
+    reader.onerror = () => setSaveMsg({ type: 'error', text: 'Failed to read image file. Please try again.' });
     reader.readAsDataURL(file);
   };
 
@@ -97,10 +103,10 @@ const Profile = () => {
     setSaveMsg(null);
     try {
       const res = await updateProfile(form);
-      setSaveMsg({ type: 'success', text: 'Personal profile records verified and updated successfully!' });
+      setSaveMsg({ type: 'success', text: 'Profile updated successfully!' });
       if (res?.data?.user && setUser) setUser(prev => ({ ...prev, ...res.data.user }));
     } catch (err) {
-      setSaveMsg({ type: 'error', text: err.response?.data?.error || 'System transaction failure: Unable to write data changes.' });
+      setSaveMsg({ type: 'error', text: err.response?.data?.error || 'Failed to save changes. Please try again.' });
     } finally { 
       setSaving(false); 
     }
@@ -110,19 +116,19 @@ const Profile = () => {
   const handlePw = async (e) => {
     e.preventDefault();
     if (pw.new_password !== pw.confirm) {
-      return setPwMsg({ type: 'error', text: 'Verification failure: Security entry tokens do not match.' });
+      return setPwMsg({ type: 'error', text: 'New passwords do not match.' });
     }
     if (pw.new_password.length < 6) {
-      return setPwMsg({ type: 'error', text: 'Complexity validation error: Passwords must contain at least 6 characters.' });
+      return setPwMsg({ type: 'error', text: 'Password must be at least 6 characters long.' });
     }
     setPwSaving(true); 
     setPwMsg(null);
     try {
       await changePassword({ old_password: pw.old_password, new_password: pw.new_password });
-      setPwMsg({ type: 'success', text: 'Credential matrix updated successfully!' });
+      setPwMsg({ type: 'success', text: 'Password changed successfully!' });
       setPw({ old_password: '', new_password: '', confirm: '' });
     } catch (err) {
-      setPwMsg({ type: 'error', text: err.response?.data?.error || 'Authorization failure: Stalled executing password modifications.' });
+      setPwMsg({ type: 'error', text: err.response?.data?.error || 'Failed to change password. Check your current password.' });
     } finally { 
       setPwSaving(false); 
     }
@@ -154,7 +160,7 @@ const Profile = () => {
             <div className="pr-avatar-frame-wrapper">
               <div className="pr-avatar-circle-frame">
                 {hasPic ? (
-                  <img src={form.profile_picture} alt="User Avatar Profile" className="pr-avatar-image" />
+                  <img src={form.profile_picture} alt="User Avatar" className="pr-avatar-image" />
                 ) : (
                   <span className="pr-avatar-initials-text">{initials}</span>
                 )}
@@ -163,7 +169,7 @@ const Profile = () => {
               <button 
                 onClick={() => { setTab('info'); setTimeout(() => fileRef.current?.click(), 100); }} 
                 className="pr-btn-camera-trigger" 
-                title="Change system photo avatar"
+                title="Change profile picture"
               >
                 📷
               </button>
@@ -187,12 +193,12 @@ const Profile = () => {
       {/* ── CORE OPERATIONS VIEWWORK PANEL DECK ── */}
       <div className="pr-content-workspace">
 
-        {/* Dynamic Multi-role Status Dashboard Aggregations */}
+        {/* Dashboard Aggregations */}
         {stats && (
           <div className="pr-stats-metrics-flex-row">
             {user?.role === 'teacher' && [
               { icon: '📚', label: 'Courses Managed', value: stats.courses_taught, tag: 'primary' },
-              { icon: '👥', label: 'Total Roster Students', value: stats.total_students, tag: 'success' },
+              { icon: '👥', label: 'Total Students', value: stats.total_students, tag: 'success' },
               { icon: '🤖', label: 'AI Documents Generated', value: stats.generated ? Object.values(stats.generated).reduce((a, b) => a + b, 0) : 0, tag: 'purple' },
             ].map(s => (
               <div key={s.label} className={`pr-metric-card stat-variant-${s.tag}`}>
@@ -203,9 +209,9 @@ const Profile = () => {
             ))}
 
             {user?.role === 'student' && [
-              { icon: '📖', label: 'Active Enrolled Channels', value: stats.courses_enrolled, tag: 'primary' },
-              { icon: '🪪', label: 'University Verification ID', value: form.university_id || '—', tag: 'purple' },
-              { icon: '✅', label: 'Account Verified Badge', value: user?.is_verified ? 'Yes' : 'No', tag: 'success' },
+              { icon: '📖', label: 'Active Courses', value: stats.courses_enrolled, tag: 'primary' },
+              { icon: '🪪', label: 'University ID', value: form.university_id || '—', tag: 'purple' },
+              { icon: '✅', label: 'Account Verified', value: user?.is_verified ? 'Yes' : 'No', tag: 'success' },
             ].map(s => (
               <div key={s.label} className={`pr-metric-card stat-variant-${s.tag}`}>
                 <div className="pr-metric-icon">{s.icon}</div>
@@ -215,10 +221,10 @@ const Profile = () => {
             ))}
 
             {user?.role === 'admin' && [
-              { icon: '👥', label: 'Total Base Users', value: stats.total_users, tag: 'primary' },
-              { icon: '👨‍🏫', label: 'Active Instructors', value: stats.total_teachers, tag: 'purple' },
+              { icon: '👥', label: 'Total Users', value: stats.total_users, tag: 'primary' },
+              { icon: '👨‍🏫', label: 'Active Teachers', value: stats.total_teachers, tag: 'purple' },
               { icon: '🎓', label: 'Enrolled Students', value: stats.total_students, tag: 'success' },
-              { icon: '📚', label: 'Indexed Core Syllabus Channels', value: stats.total_courses, tag: 'amber' },
+              { icon: '📚', label: 'Total Courses', value: stats.total_courses, tag: 'amber' },
             ].map(s => (
               <div key={s.label} className={`pr-metric-card stat-variant-${s.tag}`}>
                 <div className="pr-metric-icon">{s.icon}</div>
@@ -254,21 +260,21 @@ const Profile = () => {
             <div className="pr-pic-uploader-row-card">
               <div className="pr-uploader-circle-preview">
                 {hasPic ? (
-                  <img src={form.profile_picture} alt="Avatar Frame Preview" className="pr-uploader-image" />
+                  <img src={form.profile_picture} alt="Avatar Preview" className="pr-uploader-image" />
                 ) : (
                   <span className="pr-uploader-initials-text">{initials}</span>
                 )}
               </div>
               <div className="pr-uploader-controls-block">
-                <p className="pr-uploader-card-title">Profile Avatar Record</p>
-                <p className="pr-uploader-card-subtitle">Accepts JPG, PNG dimensions up to 2 MB maximum allocation footprint sizes safely.</p>
+                <p className="pr-uploader-card-title">Profile Picture</p>
+                <p className="pr-uploader-card-subtitle">JPG or PNG. Max size of 2MB.</p>
                 <div className="pr-uploader-action-button-group">
                   <button type="button" onClick={() => fileRef.current?.click()} className="pr-btn-upload-file-submit">
                     Upload New Image
                   </button>
                   {hasPic && (
                     <button type="button" onClick={() => setForm(f => ({ ...f, profile_picture: '' }))} className="pr-btn-remove-avatar-purgatory">
-                      Remove File
+                      Remove
                     </button>
                   )}
                 </div>
@@ -278,47 +284,47 @@ const Profile = () => {
             <form onSubmit={handleSave} className="pr-structured-form-layout">
               <div className="pr-form-grid-layout-row-2">
                 <div className="auth-form-group">
-                  <label className="pr-input-form-label">Full Registration Name</label>
+                  <label className="pr-input-form-label">Full Name</label>
                   <input value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} className="rp-input-field" required />
                 </div>
                 <div className="auth-form-group">
-                  <label className="pr-input-form-label">Email Communications Address</label>
+                  <label className="pr-input-form-label">Email Address</label>
                   <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="rp-input-field" required />
                 </div>
               </div>
 
               <div className="pr-form-grid-layout-row-2">
                 <div className="auth-form-group">
-                  <label className="pr-input-form-label">Academic Faculty Department</label>
+                  <label className="pr-input-form-label">Department</label>
                   <select value={form.department} onChange={e => setForm({ ...form, department: e.target.value })} className="rp-input-field select-cursor-pointer">
-                    <option value="">— Select Assigned Department Workgroup —</option>
+                    <option value="">— Select Department —</option>
                     {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
                 {user?.role === 'student' && (
                   <div className="auth-form-group">
-                    <label className="pr-input-form-label">University Identity Code / Roll Number</label>
+                    <label className="pr-input-form-label">University ID / Roll Number</label>
                     <input value={form.university_id} onChange={e => setForm({ ...form, university_id: e.target.value })} placeholder="e.g., BAI-22F-123" className="rp-input-field" />
                   </div>
                 )}
               </div>
 
               <div className="auth-form-group">
-                <label className="pr-input-form-label">Professional Bio / Profile Description</label>
+                <label className="pr-input-form-label">Bio / About Me</label>
                 <textarea 
                   value={form.bio} 
                   onChange={e => setForm({ ...form, bio: e.target.value })} 
                   rows={3}
-                  placeholder={user?.role === 'teacher' ? 'Briefly describe your specialization focus domains or office hours schedules…' : 'Share a concise introductory snapshot background summary…'}
+                  placeholder={user?.role === 'teacher' ? 'Share your specialization, office hours, or interests...' : 'Share a little bit about yourself...'}
                   className="rp-input-field textarea-vertical-resize-lock" 
                 />
               </div>
 
               <div className="pr-metadata-read-only-row-ledger">
                 {[
-                  { label: 'Security Role Access', value: user?.role?.toUpperCase() },
-                  { label: 'Cloud Node Provision Time', value: user?.created_at || '—' },
-                  { label: 'Verified Profile Status', value: user?.is_verified ? 'Authenticated Profile' : 'Awaiting Email Check' },
+                  { label: 'Role', value: user?.role?.toUpperCase() },
+                  { label: 'Joined', value: user?.created_at || '—' },
+                  { label: 'Status', value: user?.is_verified ? 'Verified Account' : 'Awaiting Verification' },
                 ].map(item => (
                   <div key={item.label} className="pr-metadata-item-node">
                     <div className="pr-meta-item-label-header">{item.label}</div>
@@ -329,7 +335,7 @@ const Profile = () => {
 
               <div className="pr-form-footer-action-row">
                 <button type="submit" disabled={saving} className="btn-primary pr-btn-save-submit">
-                  {saving ? 'Processing Matrix Save...' : 'Save Profile Changes'}
+                  {saving ? 'Saving...' : 'Save Profile Changes'}
                 </button>
               </div>
             </form>
@@ -339,41 +345,41 @@ const Profile = () => {
         {/* ── TAB MODULE: SYSTEM SECURITY OVERHAUL ── */}
         {tab === 'password' && (
           <div className="pr-tab-display-card-panel">
-            <h3 className="pr-panel-inner-heading">Change Account Password</h3>
-            <p className="pr-panel-inner-subtitle">Ensure cryptographic credential safety parameters by generating randomized uppercase, numeric, and character symbols arrays.</p>
+            <h3 className="pr-panel-inner-heading">Change Password</h3>
+            <p className="pr-panel-inner-subtitle">Create a strong, unique password to keep your account secure.</p>
             
             {pwMsg && <div className={`auth-alert ${pwMsg.type === 'success' ? 'success' : 'error'}`}>{pwMsg.text}</div>}
             
             <form onSubmit={handlePw} className="pr-structured-form-layout">
               <div className="auth-form-group">
-                <label className="pr-input-form-label">Current Authentication Password</label>
-                <input type="password" placeholder="Enter current baseline password token" value={pw.old_password} onChange={e => setPw({ ...pw, old_password: e.target.value })} className="rp-input-field" required />
+                <label className="pr-input-form-label">Current Password</label>
+                <input type="password" placeholder="Enter your current password" value={pw.old_password} onChange={e => setPw({ ...pw, old_password: e.target.value })} className="rp-input-field" required />
               </div>
               
               <div className="pr-form-grid-layout-row-2">
                 <div className="auth-form-group">
-                  <label className="pr-input-form-label">New Password Selection Target</label>
-                  <input type="password" placeholder="Minimum 6 characters scale array" value={pw.new_password} onChange={e => setPw({ ...pw, new_password: e.target.value })} className="rp-input-field" required />
+                  <label className="pr-input-form-label">New Password</label>
+                  <input type="password" placeholder="Minimum 6 characters" value={pw.new_password} onChange={e => setPw({ ...pw, new_password: e.target.value })} className="rp-input-field" required />
                 </div>
                 <div className="auth-form-group">
-                  <label className="pr-input-form-label">Confirm New Password Entry</label>
+                  <label className="pr-input-form-label">Confirm New Password</label>
                   <input 
                     type="password" 
-                    placeholder="Re-enter password selection target string" 
+                    placeholder="Re-enter your new password" 
                     value={pw.confirm} 
                     onChange={e => setPw({ ...pw, confirm: e.target.value })} 
                     className={`rp-input-field ${pw.confirm && pw.new_password !== pw.confirm ? 'input-validation-border-error' : ''}`}
                     required 
                   />
                   {pw.confirm && pw.new_password !== pw.confirm && (
-                    <p className="pr-field-level-alert-text">⚠️ Passwords entry sequences do not match.</p>
+                    <p className="pr-field-level-alert-text">⚠️ Passwords do not match.</p>
                   )}
                 </div>
               </div>
 
               <div className="pr-form-footer-action-row">
                 <button type="submit" disabled={pwSaving} className="btn-primary pr-btn-save-submit">
-                  {pwSaving ? 'Executing Refactor...' : 'Update Password Credentials'}
+                  {pwSaving ? 'Updating...' : 'Update Password'}
                 </button>
               </div>
             </form>
@@ -384,13 +390,13 @@ const Profile = () => {
         {tab === 'courses' && (
           <div className="pr-tab-display-card-panel">
             <h3 className="pr-panel-inner-heading">
-              {user?.role === 'teacher' ? 'Active Faculty Course Directives' : 'My Enrolled Class Units'}
+              {user?.role === 'teacher' ? 'Active Courses' : 'My Enrolled Courses'}
             </h3>
             
             {(!stats?.courses || stats.courses.length === 0) ? (
               <div className="pr-empty-roster-state-box">
                 <div className="pr-empty-box-art">📭</div>
-                <p className="pr-empty-box-message-prompt">{user?.role === 'teacher' ? 'No academic channels found cataloged to your instructor credential signatures yet.' : 'Your account portfolio isn\'t linked to any courses yet.'}</p>
+                <p className="pr-empty-box-message-prompt">{user?.role === 'teacher' ? 'You haven\'t created any courses yet.' : 'You aren\'t enrolled in any courses yet.'}</p>
               </div>
             ) : (
               <div className="pr-course-link-deck-stack">
@@ -417,8 +423,8 @@ const Profile = () => {
         {/* ── TAB MODULE: AI GENERATION INVENTORY MATRIX (TEACHER SPECIFIC) ── */}
         {tab === 'generated' && user?.role === 'teacher' && (
           <div className="pr-tab-display-card-panel">
-            <h3 className="pr-panel-inner-heading">🤖 AI RAG Content Tracking Summary</h3>
-            <p className="pr-panel-inner-subtitle">Granular data inventory monitoring across all vector database split calculations, educational documents, and auto-generated content evaluation materials.</p>
+            <h3 className="pr-panel-inner-heading">🤖 AI Content Summary</h3>
+            <p className="pr-panel-inner-subtitle">A quick breakdown of all the educational materials the AI Assistant has generated for your courses.</p>
             
             <div className="pr-ai-generation-matrix-grid">
               {GEN_TYPES.map(gt => {
@@ -430,7 +436,7 @@ const Profile = () => {
                       <span className="pr-ai-card-integer-counter">{count}</span>
                     </div>
                     <div className="pr-ai-card-label-string">{gt.label}</div>
-                    <div className="pr-ai-card-inventory-subtext">{count === 1 ? '1 index file' : `${count} verified sets`} parsed</div>
+                    <div className="pr-ai-card-inventory-subtext">{count === 1 ? '1 file' : `${count} files`} generated</div>
                   </div>
                 );
               })}

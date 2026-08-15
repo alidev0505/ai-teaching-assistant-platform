@@ -9,26 +9,37 @@ const Login = () => {
   const [notVerified, setNotVerified] = useState(false);
   const [loading, setLoading] = useState(false);
   const { loginUser } = useContext(AuthContext);
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // React Router navigation
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(''); 
     setNotVerified(false); 
     setLoading(true);
-    
+
     try {
+      // 👇 Removed the artificial 10-second Promise.race timeout. 
+      // This allows sleeping cloud servers time to wake up without throwing false network errors.
       const user = await loginUser(formData.email, formData.password);
-      
-      if (user?.role === 'admin') navigate('/admin');
-      else if (user?.role === 'teacher') navigate('/teacher');
-      else navigate('/student');
+
+      // 👇 Replaced window.location.href with navigate(). 
+      // This preserves React state and prevents the app from hanging on a hard reload.
+      if (user?.role === 'admin') {
+        navigate('/admin');
+      } else if (user?.role === 'teacher') {
+        navigate('/teacher');
+      } else {
+        navigate('/student');
+      }
+
     } catch (err) {
+      console.error("🔥 LOGIN ERROR TRACE:", err);
+
       const errData = err.response?.data;
       if (errData?.code === 'EMAIL_NOT_VERIFIED') {
         setNotVerified(true);
       } else {
-        setError(errData?.error || 'Invalid credentials. Please verify your data entry.');
+        setError(errData?.error || err.message || 'Invalid credentials or network failure.');
       }
     } finally { 
       setLoading(false); 
@@ -45,7 +56,7 @@ const Login = () => {
 
         <div className="auth-card">
           {error && <div className="auth-alert error">⚠️ {error}</div>}
-          
+
           {notVerified && (
             <div className="auth-alert warning">
               📧 <strong>Please verify your email first.</strong><br />

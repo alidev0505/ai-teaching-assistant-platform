@@ -5,6 +5,8 @@ import { AuthContext } from '../context/AuthContext';
 import AnnouncementBanner from '../components/AnnouncementBanner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const StudentDashboard = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -321,8 +323,29 @@ const StudentDashboard = () => {
         .std-content-workspace { max-width: 1200px; margin: -45px auto 0; padding: 0 24px; position: relative; z-index: 10; display: flex; flex-direction: column; gap: 32px; box-sizing: border-box; }
         
         /* Semesters Entry Cards Hub Grid */
-        .std-semester-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; width: 100%; margin-top: 15px; }
-        .std-sem-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 32px; text-align: center; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); display: flex; flex-direction: column; align-items: center; gap: 8px; transition: transform 0.25s, box-shadow 0.25s; }
+        .std-semester-cards-grid { 
+          display: grid; 
+          grid-template-columns: repeat(auto-fill, minmax(260px, 280px)); 
+          gap: 24px; 
+          width: 100%; 
+          margin-top: 15px; 
+        }
+        
+        .std-sem-card { 
+          background: #ffffff; 
+          border: 1px solid #e2e8f0; 
+          border-radius: 16px; 
+          padding: 32px; 
+          text-align: center; 
+          cursor: pointer; 
+          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); 
+          display: flex; 
+          flex-direction: column; 
+          align-items: center; 
+          gap: 8px; 
+          transition: transform 0.25s, box-shadow 0.25s; 
+          max-width: 280px; /* Forces the compact square boundary */
+        }
         .std-sem-card:hover { transform: translateY(-3px); box-shadow: 0 12px 24px rgba(0,0,0,0.05); border-color: #3b82f6; }
         .std-sem-icon-avatar { font-size: 2.2rem; background-color: #eff6ff; width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #2563eb; margin-bottom: 8px; }
         .std-sem-card-title { font-size: 1.25rem; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.3px; }

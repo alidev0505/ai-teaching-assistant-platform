@@ -159,12 +159,17 @@ def create_course():
         return jsonify({'error': 'Semester is required'}), 400
 
     try:
+        # 👇 Capture all the new fields sent from the frontend modal
         new_course = Course(
             name=data['name'],
             description=data.get('description', ''),
             teacher_id=user_id,
             class_code=generate_unique_code(),
-            semester_id=data['semester_id']
+            semester_id=data['semester_id'],
+            program=data.get('program'),
+            semester_code=data.get('semester_code'),
+            shift=data.get('shift'),
+            course_catalog_code=data.get('course_catalog_code')
         )
         
         db.session.add(new_course)
@@ -175,7 +180,11 @@ def create_course():
             'course': {
                 'id': new_course.id,
                 'name': new_course.name,
-                'class_code': new_course.class_code
+                'class_code': new_course.class_code,
+                'program': new_course.program,
+                'semester_code': new_course.semester_code,
+                'shift': new_course.shift,
+                'course_catalog_code': new_course.course_catalog_code
             }
         }), 201
         
@@ -243,12 +252,31 @@ def get_course(course_id):
         materials = [{'id': m.id, 'title': m.title, 'file_path': m.file_path, 'is_processed': m.is_processed} for m in course.materials]
         assignments = [{'id': a.id, 'title': a.title, 'description': a.description} for a in course.assignments]
 
+        # Make sure QuizSubmission is imported at the top of your file!
+
+        # --- INSIDE YOUR get_course ROUTE ---
         quizzes_query = Quiz.query.filter_by(course_id=course_id).all()
-        quiz_list = [{
-            'id': q.id,
-            'title': q.title,
-            'time_limit': q.time_limit_minutes
-        } for q in quizzes_query]
+        quiz_list = []
+        
+        for q in quizzes_query:
+            # Students should only see published quizzes
+            if not is_teacher and not q.is_published:
+                continue
+                
+            # Check if this specific student has taken this quiz
+            q_sub = None
+            if not is_teacher:
+                q_sub = QuizSubmission.query.filter_by(quiz_id=q.id, student_id=current_user_id).first()
+            
+            quiz_list.append({
+                'id': q.id,
+                'title': q.title,
+                'time_limit': getattr(q, 'time_limit_minutes', 0),
+                'is_published': q.is_published,
+                'deadline': q.deadline.isoformat() if getattr(q, 'deadline', None) else None,
+                'attempted': bool(q_sub),      
+                'score': q_sub.score if q_sub else None  
+            })
         
         return jsonify({
             'course': {
@@ -500,6 +528,7 @@ def delete_assignment(assignment_id):
     return jsonify({'message': 'Assignment deleted successfully'}), 200
 
 # 1. UPDATE THIS FUNCTION (To check if student has submitted)
+# --- GET ASSIGNMENTS (Updated to securely send published grades) ---
 @content_bp.route('/assignments/<int:course_id>', methods=['GET'])
 @jwt_required()
 def get_assignments(course_id):
@@ -516,18 +545,21 @@ def get_assignments(course_id):
             'deadline': a.deadline.isoformat() if a.deadline else None,
             'created_at': a.created_at.isoformat(),
             'file_path': a.file_path,
-            'my_submission': None,
-            'my_submission_grade': None # Add grade info
+            'my_submission': None 
         }
         
+        # Check for the student's submission
         sub = Submission.query.filter_by(assignment_id=a.id, student_id=user_id).first()
         if sub:
             data['my_submission'] = {
                 'id': sub.id,
-                'submitted_at': sub.submitted_at.isoformat(),
-                'file_path': sub.file_path
+                'submitted_at': sub.submitted_at.isoformat() if sub.submitted_at else None,
+                'file_path': sub.file_path,
+                # 👇 CRITICAL FIX: Only send grade/feedback if the teacher published it
+                'grade': sub.obtained_marks if sub.is_published else None,
+                'feedback': sub.feedback if sub.is_published else None,
+                'is_published': sub.is_published
             }
-            data['my_submission_grade'] = sub.grade if sub.grade != 'N/A' else 'Pending'
             
         results.append(data)
 
@@ -750,7 +782,9 @@ def get_assignment_submissions(assignment_id):
     return jsonify({
         'submissions': [{
             'id': s.id,
+            'username': s.student.id if s.student else None,
             'student_name': s.student.username if s.student else 'Unknown',
+            'university_id': s.student.university_id if s.student else 'Unknown',    # 👈 ADDED THIS
             'email': s.student.email if s.student else 'N/A',
             'submitted_at': s.submitted_at.strftime('%Y-%m-%d %H:%M') if s.submitted_at else 'N/A',
             'file_path': s.file_path,
@@ -1057,7 +1091,6 @@ def get_my_attendance_stats():
         
     return jsonify({'stats': stats}), 200
 
-# --- GET QUIZZES FOR A COURSE (With Attempt Status) ---
 # --- GET QUIZZES FOR A COURSE (With Attempt Status & Assignment logic) ---
 @content_bp.route('/quizzes/<int:course_id>', methods=['GET'])
 @jwt_required()
@@ -1150,6 +1183,8 @@ def delete_course_teacher(course_id):
         print(f"❌ TEACHER DELETE ERROR: {e}")
         return jsonify({'error': 'Failed to delete course'}), 500
     
+import os
+
 @content_bp.route('/generated/course/<int:course_id>', methods=['GET'])
 @jwt_required()
 def get_course_generated_content(course_id):
@@ -1162,17 +1197,29 @@ def get_course_generated_content(course_id):
 
     data = []
     for content, material in results:
+        # Read raw text content from disk if the file exists
+        file_text = ""
+        if content.file_path and os.path.exists(content.file_path):
+            try:
+                with open(content.file_path, 'r', encoding='utf-8') as f:
+                    file_text = f.read()
+            except Exception as e:
+                file_text = f"Error reading file: {str(e)}"
+        else:
+            file_text = "Generated file content not found."
+
         data.append({
             'id': content.id,
             'type': content.content_type, # e.g., 'quiz', 'summary'
             'created_at': content.created_at.strftime('%Y-%m-%d %H:%M'),
             'material_title': material.title,
-            'file_path': content.file_path
+            'file_path': content.file_path,
+            'content': file_text  # <--- Included text content for React frontend
         })
 
     return jsonify({'generated_content': data}), 200
 
-# REPLACE YOUR OLD delete_generated_content FUNCTION WITH THIS ONE
+
 @content_bp.route('/generated/<int:content_id>', methods=['DELETE'])
 @jwt_required()
 def delete_generated_content(content_id):
@@ -1472,30 +1519,44 @@ def get_teacher_semester_courses(semester_id):
             'name': c.name,
             'code': c.class_code,
             'description': c.description,
-            'student_count': len(c.enrollments)
+            'student_count': len(c.enrollments),
+            'program': c.program,  # <-- Added program metadata
+            'shift': c.shift,       # <-- Added shift metadata
+            'course_catalog_code': c.course_catalog_code, 
+            'semester_code': c.semester_code
         } for c in courses]
     }), 200
 
 # 2. Get Courses for a Student in a Specific Semester (Enrolled)
+# 2. Get Courses for a Student in a Specific Semester (Enrolled)
 @content_bp.route('/student/courses/<int:semester_id>', methods=['GET'])
 @jwt_required()
 def get_student_semester_courses(semester_id):
-    user_id = int(get_jwt_identity())
-    
-    # Join Enrollment -> Course -> Filter by Semester & Student
-    enrollments = db.session.query(Enrollment).join(Course).filter(
-        Enrollment.student_id == user_id,
-        Course.semester_id == semester_id
-    ).all()
-    
-    return jsonify({
-        'courses': [{
-            'id': e.course.id,
-            'name': e.course.name,
-            'code': e.course.class_code,
-            'teacher': e.course.teacher.username
-        } for e in enrollments]
-    }), 200
+    try:
+        user_id = int(get_jwt_identity())
+        
+        # Join Enrollment -> Course -> Filter by Semester & Student
+        enrollments = db.session.query(Enrollment).join(Course).filter(
+            Enrollment.student_id == user_id,
+            Course.semester_id == semester_id
+        ).all()
+        
+        return jsonify({
+            'courses': [{
+                'id': e.course.id,
+                'name': e.course.name,
+                'code': e.course.class_code,
+                # Safely fetch teacher name, or fallback to 'Unknown'
+                'teacher': e.course.teacher.username if getattr(e.course, 'teacher', None) else 'Unknown Instructor',
+                # Safely fetch metadata so it doesn't crash if the columns are missing
+                'program': getattr(e.course, 'program', 'N/A'),  
+                'shift': getattr(e.course, 'shift', 'N/A')       
+            } for e in enrollments if e.course]
+        }), 200
+
+    except Exception as e:
+        print(f"🔥 ERROR FETCHING STUDENT COURSES: {e}")
+        return jsonify({'error': str(e)}), 500
 
 # 3. Get ALL available courses in a semester (For Student Enrollment)
 @content_bp.route('/semester/<int:semester_id>/available', methods=['GET'])
@@ -1507,7 +1568,9 @@ def get_all_semester_courses(semester_id):
             'id': c.id,
             'name': c.name,
             'teacher': c.teacher.username,
-            'code': c.class_code
+            'code': c.class_code,
+            'program': c.program,  # <-- Added program metadata
+            'shift': c.shift       # <-- Added shift metadata
         } for c in courses]
     }), 200
 

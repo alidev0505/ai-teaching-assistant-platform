@@ -20,7 +20,7 @@ const AdminDepartments = () => {
     { id: 'BSCS', name: 'Computer Science', variant: 'blue' },
     { id: 'BSSE', name: 'Software Engineering', variant: 'emerald' },
     { id: 'BSAI', name: 'Artificial Intelligence', variant: 'purple' },
-    { id: 'BSCYBER', name: 'Cyber Security', variant: 'red' },
+    { id: 'BSCY', name: 'Cyber Security', variant: 'red' },
     { id: 'BSIT', name: 'Information Technology', variant: 'amber' },
     { id: 'BBA', name: 'Business Administration', variant: 'cyan' },
     { id: 'BSAF', name: 'Accounting & Finance', variant: 'pink' },

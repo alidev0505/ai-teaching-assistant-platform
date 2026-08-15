@@ -64,7 +64,7 @@ const MaterialsTab = ({
                   className="mt-btn-card-delete"
                   title="Delete resource"
                 >
-                  🗑️
+                  Remove
                 </button>
               )}
             </div>

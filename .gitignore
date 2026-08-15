@@ -1,30 +1,27 @@
-# Python
-__pycache__/
-*.pyc
-.venv/
-venv/
+# --- PYTHON / BACKEND ---
+backend/__pycache__/
+backend/*.pyc
+backend/.venv/
+backend/venv/
+backend/seed_admin.py
+backend/.env
+backend/instance/
+backend/*.sqlite3
+backend/*.log
+backend/logs.json
+backend/uploads/
+backend/generated/
+backend/vector_db/
 
-# Security / Seeding
-seed_admin.py
+# --- NODE / FRONTEND ---
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.env.local
+frontend/.env.*
+frontend/npm-debug.log*
 
-# Environment
-.env
-
-# Flask
-instance/
-
-# Node
-node_modules/
-
-# Logs
-*.log
-logs.json
-
-# Generated / uploads
-uploads/
-generated/
-vector_db/
-
-# OS
+# --- OS / SYSTEM ---
 .DS_Store
 Thumbs.db
+.vscode/

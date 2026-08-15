@@ -114,11 +114,13 @@ const QuizDetails = () => {
         {/* KPI Scoreboard Panels */}
         <div className="qd-kpi-grid-matrix-row-3">
           <div className="qd-kpi-node-card kpi-top-edge-blue">
-            <h2 className="qd-kpi-integer-value">{stats.average_score}%</h2>
+            {/* 👇 UPDATED: Added Number().toFixed(2) 👇 */}
+            <h2 className="qd-kpi-integer-value">{Number(stats.average_score || 0).toFixed(2)}%</h2>
             <p className="qd-kpi-string-label">Average Score Ratio</p>
           </div>
           <div className="qd-kpi-node-card kpi-top-edge-emerald">
-            <h2 className="qd-kpi-integer-value">{stats.highest_score}%</h2>
+            {/* 👇 UPDATED: Added Number().toFixed(2) 👇 */}
+            <h2 className="qd-kpi-integer-value">{Number(stats.highest_score || 0).toFixed(2)}%</h2>
             <p className="qd-kpi-string-label">Highest Score Achieved</p>
           </div>
           <div className="qd-kpi-node-card kpi-top-edge-amber">
@@ -179,7 +181,8 @@ const QuizDetails = () => {
                         </td>
                         <td className="qd-td-score-badge-cell">
                             <span className={`qd-score-pill-badge pill-grading-${s.score >= 80 ? 'high' : s.score < 50 ? 'low' : 'mid'}`}>
-                                {s.score}%
+                                {/* 👇 UPDATED: Added Number().toFixed(2) here as well 👇 */}
+                                {Number(s.score || 0).toFixed(2)}%
                             </span>
                         </td>
                     </tr>

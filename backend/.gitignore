@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Security / Seeding
+seed_admin.py
+
+# Environment
+.env
+
+# Flask
+instance/
+
+# Node
+node_modules/
+
+# Logs
+*.log
+logs.json
+
+# Generated / uploads
+uploads/
+generated/
+vector_db/
+
+# OS
+.DS_Store
+Thumbs.db

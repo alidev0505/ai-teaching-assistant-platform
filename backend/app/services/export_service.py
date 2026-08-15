@@ -4,7 +4,8 @@ import io
 import os
 import re
 import tempfile
-#from docx2pdf import convert
+import pythoncom
+from docx2pdf import convert
 from datetime import datetime
 #import pythoncom 
 

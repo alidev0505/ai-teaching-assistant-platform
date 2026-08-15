@@ -87,10 +87,17 @@ const CourseDetail = () => {
         try {
           const gradeRes = await getStudentGrades(id);
           setGrades(gradeRes?.data?.grades || []);
+          // ❌ Removed the attendance call from the student check
+        } catch (e) {
+          console.error("Error matching student analytics report cards:", e);
+        }
+      } else if (user?.role === 'teacher') {
+        // ✅ Moved it here so ONLY teachers request the master report
+        try {
           const attRes = await getAttendanceReport(id);
           setAttendance(attRes?.data || null);
         } catch (e) {
-          console.error("Error matching student analytics report cards:", e);
+          console.error("Error fetching teacher attendance report:", e);
         }
       }
     } catch (err) {
@@ -163,18 +170,35 @@ const CourseDetail = () => {
     }
   };
 
-  const handleExport = () => {
-    if (!students || students.length === 0) return setSystemAlert({ type: 'error', text: 'Export Error: No student metrics recorded to write.' });
-    const headers = ['Student ID', 'Username', 'Email', 'University ID'];
-    const rows = students.map(s => [s.id, s.username, s.email, s.university_id || 'N/A']);
-    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${courseInfo.name}_Student_List.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleExport = async () => {
+    try {
+      // 1. Instantly fetch the latest student list from the backend
+      const res = await getEnrolledStudents(id);
+      const studentList = res?.data?.students || [];
+
+      // 2. Check if the course actually has students
+      if (studentList.length === 0) {
+        return setSystemAlert({ type: 'error', text: 'Export Error: No student metrics recorded to write.' });
+      }
+
+      // 3. Build and download the CSV
+      const headers = ['Student ID', 'Username', 'Email', 'University ID'];
+      const rows = studentList.map(s => [s.id, s.username, s.email, s.university_id || 'N/A']);
+      const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
+      const encodedUri = encodeURI(csvContent);
+      
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `${courseInfo.name}_Student_List.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setSystemAlert({ type: 'success', text: 'CSV Ledger exported successfully!' });
+    } catch (err) {
+      console.error(err);
+      setSystemAlert({ type: 'error', text: 'Export Error: Failed to fetch student data.' });
+    }
   };
 
   const handleMaterialUpload = async (e) => {
@@ -280,7 +304,9 @@ const CourseDetail = () => {
 
   const handleDownload = async (path, filename) => {
     try {
-      const res = await api.get(`/content/download?path=${encodeURIComponent(path)}`, { responseType: 'blob' });
+      // 👇 Fixed the URL to match the backend route 👇
+      const res = await api.get(`/content/download-file?path=${encodeURIComponent(path)}`, { responseType: 'blob' });
+      
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -298,7 +324,7 @@ const CourseDetail = () => {
       setSystemAlert({ type: 'error', text: 'Buffer Link Crash: Stalled reading static file data tokens.' });
     }
   };
-
+  
   if (loading) return (
     <div className="cd-loading-page-wrapper">
       <div className="cd-spinner-box-container">
@@ -364,9 +390,9 @@ const CourseDetail = () => {
               
               {user?.role === 'teacher' ? (
                 <>
-                  <button onClick={handleExport} className="cd-btn-action-outline-export">Export CSV Ledger</button>
+                  <button onClick={handleExport} className="cd-btn-action-outline-export">Students CSV </button>
                   <Link to={`/attendance/${id}`} className="cd-link-action-primary blue">Attendance Sheet</Link>
-                  <Link to={`/course/${id}/create-quiz`} className="cd-link-action-primary purple">Compile Evaluation</Link>
+                  <Link to={`/course/${id}/create-quiz`} className="cd-link-action-primary purple">Create Quiz Form</Link>
                   <button onClick={handleDeleteCourse} className="cd-btn-action-danger-purge">Purge Channel</button>
                 </>
               ) : (

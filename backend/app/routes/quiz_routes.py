@@ -102,32 +102,61 @@ def get_course_quizzes(course_id):
     else:
         quizzes = Quiz.query.filter_by(course_id=course_id, is_published=True).all()
         
-    return jsonify({
-        'quizzes': [{
+    output = []
+    for q in quizzes:
+        # Check if this specific student has submitted this quiz
+        submission = None
+        if user.role != 'teacher':
+            submission = QuizSubmission.query.filter_by(
+                quiz_id=q.id, 
+                student_id=user_id
+            ).first()
+
+        output.append({
             'id': q.id,
             'title': q.title,
             'time_limit': q.time_limit_minutes,
             'is_published': q.is_published,
-            'deadline': q.deadline.isoformat() if q.deadline else None
-        } for q in quizzes]
-    }), 200
+            'deadline': q.deadline.isoformat() if q.deadline else None,
+            'attempted': bool(submission),
+            'score': submission.score if submission else None  # 👈 This feeds React the score!
+        })
+        
+    return jsonify({'quizzes': output}), 200
 
 @quiz_bp.route('/student/available-quizzes/<int:course_id>', methods=['GET'])
 @jwt_required()
 def get_student_available_quizzes(course_id):
-    # Log for debugging - check your terminal when student loads dashboard
-    print(f"DEBUG: Student checking for quizzes in Course ID: {course_id}")
+    try:
+        identity = get_jwt_identity()
+        user_id = identity['id'] if isinstance(identity, dict) else int(identity)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid token structure'}), 401
+    
+    print(f"DEBUG: Student {user_id} checking for quizzes in Course ID: {course_id}")
     
     # Fetch quizzes that are published AND belong to this course
     quizzes = Quiz.query.filter_by(course_id=course_id, is_published=True).all()
     
-    print(f"DEBUG: Found {len(quizzes)} published quizzes")
-    return jsonify([{
-        "id": q.id,
-        "title": q.title,
-        "time_limit": q.time_limit_minutes,
-        "deadline": q.deadline.isoformat() if q.deadline else None
-    } for q in quizzes]), 200
+    available_quizzes = []
+    for q in quizzes:
+        # Check if the student has already submitted an attempt for this quiz
+        existing_submission = QuizSubmission.query.filter_by(
+            quiz_id=q.id, 
+            student_id=user_id
+        ).first()
+        
+        # Only add to list if they haven't attempted it yet
+        if not existing_submission:
+            available_quizzes.append({
+                "id": q.id,
+                "title": q.title,
+                "time_limit": q.time_limit_minutes,
+                "deadline": q.deadline.isoformat() if q.deadline else None
+            })
+    
+    print(f"DEBUG: Found {len(available_quizzes)} unattempted published quizzes")
+    return jsonify(available_quizzes), 200
 
 @quiz_bp.route('/<int:quiz_id>/assign', methods=['POST'])
 @jwt_required()

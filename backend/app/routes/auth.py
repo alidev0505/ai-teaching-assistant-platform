@@ -8,7 +8,7 @@ import secrets
 import re
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-
+import os
 auth_bp = Blueprint('auth', __name__)
 
 
@@ -50,11 +50,15 @@ def get_authenticated_user_id():
 
 # ── Helper: send email via SMTP ─────────────────────────────────────────────
 def send_email(to_email, subject, html_body):
-    """Send an email using the SMTP credentials stored in app config."""
+    """Send an email using the SMTP credentials stored in environment variables."""
     try:
-        cfg = current_app.config
-        username = cfg.get('MAIL_USERNAME', '')
-        password = cfg.get('MAIL_PASSWORD', '')
+        # Fetch directly from the environment to match your .env file
+        username = os.environ.get('SMTP_EMAIL') or current_app.config.get('MAIL_USERNAME', '')
+        password = os.environ.get('SMTP_PASSWORD') or current_app.config.get('MAIL_PASSWORD', '')
+        
+        # Hardcode Gmail server defaults since you are using Gmail
+        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.environ.get('SMTP_PORT', 587))
 
         if not username or not password or username == 'your-gmail@gmail.com':
             print("⚠️ SMTP credentials not configured.")
@@ -66,7 +70,7 @@ def send_email(to_email, subject, html_body):
         msg['To'] = to_email
         msg.attach(MIMEText(html_body, 'html'))
 
-        with smtplib.SMTP(cfg['MAIL_SERVER'], cfg['MAIL_PORT']) as server:
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.ehlo()
             server.starttls()
             server.login(username, password)
@@ -74,7 +78,7 @@ def send_email(to_email, subject, html_body):
 
         return True
     except Exception as e:
-        print(f"❌ Unexpected email error: {type(e).__name__}")
+        print(f"❌ Unexpected email error: {type(e).__name__} - {str(e)}")
         return False
 
 

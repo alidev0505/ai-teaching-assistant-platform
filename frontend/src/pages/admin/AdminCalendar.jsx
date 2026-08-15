@@ -51,7 +51,7 @@ const AdminCalendar = () => {
       const endHour = parseInt(endStr?.split(':')[0]) || 9;
       const endMin = parseInt(endStr?.split(':')[1]) || 30;
       events.push({
-        id: c.id, code: c.class_code, title: c.name,
+        id: c.id, code: c.class_code || 'CRS', title: c.name,
         start: currentDay.clone().set({ hour: startHour, minute: startMin, second: 0 }).toDate(),
         end: currentDay.clone().set({ hour: endHour, minute: endMin, second: 0 }).toDate(),
         resource: c.room || 'TBD', teacher: c.teacher_name || 'Unassigned',
@@ -113,21 +113,24 @@ const AdminCalendar = () => {
           </div>
         ) : (
           <div className="cal-container-card">
-            <Calendar
-              localizer={localizer}
-              events={filteredEvents} 
-              startAccessor="start"
-              endAccessor="end"
-              defaultView="week"
-              views={['week', 'day', 'agenda']} 
-              step={60}
-              timeslots={1}
-              min={new Date(0, 0, 0, 8, 0, 0)}
-              max={new Date(0, 0, 0, 20, 0, 0)}
-              components={{ event: CustomEvent }}
-              eventPropGetter={eventStyleGetter}
-              tooltipAccessor={evt => `${evt.title} \nInstructor: ${evt.teacher} \nRoom Location: ${evt.resource}`}
-            />
+            {/* 👇 EXPLICIT HEIGHT APPLIED TO FIX GRID OVERFLOW */}
+            <div style={{ height: '750px' }}>
+              <Calendar
+                localizer={localizer}
+                events={filteredEvents} 
+                startAccessor="start"
+                endAccessor="end"
+                defaultView="week"
+                views={['week', 'day', 'agenda']} 
+                step={60}
+                timeslots={1}
+                min={new Date(0, 0, 0, 8, 0, 0)}
+                max={new Date(0, 0, 0, 20, 0, 0)}
+                components={{ event: CustomEvent }}
+                eventPropGetter={eventStyleGetter}
+                tooltipAccessor={evt => `${evt.title} \nInstructor: ${evt.teacher} \nRoom Location: ${evt.resource}`}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -141,20 +144,22 @@ const AdminCalendar = () => {
         .cal-main-title { font-size: 1.5rem; font-weight: 900; color: #0f172a; margin: 0; }
         .cal-subtitle-counter { font-size: 0.8rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
         .cal-filters-flex-row-strip { display: flex; gap: 12px; }
-        .cal-select-filter-dropdown { padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 600; cursor: pointer; }
+        .cal-select-filter-dropdown { padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 600; cursor: pointer; background: #ffffff; color: #0f172a; }
 
         .cal-workspace-body { max-width: 1400px; margin: 24px auto 0; padding: 0 24px; }
         .cal-container-card { background: #ffffff; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
-        .cal-custom-event-node { border-radius: 6px; padding: 4px; font-size: 0.8rem; }
         
-        .cal-event-chip-wrapper { display: flex; flex-direction: column; gap: 2px; }
-        .cal-event-code-label { font-weight: 800; }
-        .cal-event-room-badge { font-size: 0.7rem; font-weight: 600; }
+        /* 👇 IMPROVED EVENT CHip STYLING & TRUNCATION */
+        .cal-custom-event-node { border-radius: 6px; padding: 4px 6px !important; font-size: 0.75rem; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .cal-event-chip-wrapper { display: flex; flex-direction: column; gap: 1px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .cal-event-code-label { font-weight: 800; overflow: hidden; text-overflow: ellipsis; }
+        .cal-event-room-badge { font-size: 0.65rem; font-weight: 600; opacity: 0.85; overflow: hidden; text-overflow: ellipsis; }
 
         .cal-theme-cs { background: #eff6ff !important; border-left: 4px solid #2563eb; color: #1e40af; }
         .cal-theme-eng { background: #fdf2f2 !important; border-left: 4px solid #ef4444; color: #991b1b; }
         .cal-theme-mth { background: #f0fdf4 !important; border-left: 4px solid #10b981; color: #065f46; }
         .cal-theme-bba { background: #fffbeb !important; border-left: 4px solid #f59e0b; color: #92400e; }
+        .cal-theme-default { background: #f8fafc !important; border-left: 4px solid #64748b; color: #334155; }
 
         .cal-loader-splash-container { text-align: center; padding: 100px 0; color: #64748b; }
         .ac-spinner { width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
