@@ -162,35 +162,62 @@ def verify_email(token):
 
 
 # ── Login ─────────────────────────────────────────────────────────────────────
+# ── Login ─────────────────────────────────────────────────────────────────────
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    data = request.get_json()
-    email = data.get('email', '').strip().lower()
-    password = data.get('password', '')
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid request payload'}), 400
+            
+        email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
 
-    user = User.query.filter_by(email=email).first()
+        if not email or not password:
+            return jsonify({'error': 'Email and password are required'}), 400
 
-    if not user or not check_password_hash(user.password_hash, password):
-        return jsonify({'error': 'Invalid credentials'}), 401
+        user = User.query.filter_by(email=email).first()
 
-    if not user.is_verified and user.role == 'student':
+        if not user or not user.password_hash:
+            return jsonify({'error': 'Invalid credentials'}), 401
+
+        try:
+            is_valid = check_password_hash(user.password_hash, password)
+        except Exception as hash_err:
+            print(f"⚠️ Password check error: {hash_err}")
+            is_valid = False
+
+        if not is_valid:
+            return jsonify({'error': 'Invalid credentials'}), 401
+
+        if not user.is_verified and user.role == 'student':
+            return jsonify({
+                'error': 'Please verify your email before logging in. Check your inbox for the verification link.',
+                'code': 'EMAIL_NOT_VERIFIED'
+            }), 403
+
+        try:
+            access_token = create_access_token(identity=str(user.id))
+        except Exception as token_err:
+            print(f"⚠️ Token generation error: {token_err}")
+            return jsonify({'error': 'Token creation failed'}), 500
+
         return jsonify({
-            'error': 'Please verify your email before logging in. Check your inbox for the verification link.',
-            'code': 'EMAIL_NOT_VERIFIED'
-        }), 403
+            'access_token': access_token,
+            'token': access_token,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': user.role
+            }
+        }), 200
 
-    access_token = create_access_token(identity=str(user.id))
-
-    return jsonify({
-        'access_token': access_token,
-        'token': access_token,
-        'user': {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'role': user.role
-        }
-    }), 200
+    except Exception as e:
+        print(f"🔥 CRITICAL LOGIN EXCEPTION: {type(e).__name__} - {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Internal server authentication error'}), 500
 
 
 # ── Forgot Password ───────────────────────────────────────────────────────────
