@@ -50,29 +50,19 @@ def create_app():
     app.register_blueprint(student_bp, url_prefix='/api/student')
 
     with app.app_context():
-        # Compile database model bindings securely
-        db.create_all()
-        
+        # Only create tables if they don't exist, wrapped safely
         try:
-            from sqlalchemy import text
-            with db.engine.connect() as conn:
-                migrations = {
-                    'department':      "ALTER TABLE users ADD COLUMN IF NOT EXISTS department VARCHAR(100)",
-                    'bio':             "ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT",
-                    'profile_picture': "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_picture TEXT",
-                }
-                for col, sql in migrations.items():
-                    conn.execute(text(sql))
-                conn.commit()
+            db.create_all()
         except Exception as e:
-            print(f"ℹ️ Migration log tracing bypassed safely.")
+            print(f"⚠️ Database initialization notice: {e}")
 
+        # Lazy-load scheduler without blocking worker startup
         try:
             from app.services.scheduler_service import SchedulerService
             background_worker = SchedulerService(app)
             background_worker.start()
             print("🚀 Secure Background Scheduler service active and isolated.")
         except Exception as e:
-            print(f"⚠️ Non-critical scheduler worker runtime start failure.")
+            print(f"⚠️ Non-critical scheduler worker runtime start failure: {e}")
 
     return app
