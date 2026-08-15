@@ -5,17 +5,25 @@ import os
 import re
 import tempfile
 import sys
-import pythoncom
-from docx2pdf import convert
 from datetime import datetime
-#import pythoncom 
 
-if sys.platform.startswith('win'):
-    import pythoncom
-    import win32com.client
-else:
+# Safely handle Windows-only COM libraries for cross-platform (Linux Azure) compatibility
+try:
+    if sys.platform.startswith('win'):
+        import pythoncom
+        import win32com.client
+        from docx2pdf import convert
+        WINDOWS_COM_AVAILABLE = True
+    else:
+        pythoncom = None
+        win32com.client = None
+        convert = None
+        WINDOWS_COM_AVAILABLE = False
+except ImportError:
     pythoncom = None
     win32com.client = None
+    convert = None
+    WINDOWS_COM_AVAILABLE = False
 
 class ExportService:
 
@@ -186,7 +194,6 @@ class ExportService:
                         if not line: continue
                         
                         # --- A. DETECT ANSWERS (Backup Check) ---
-                        # Even if clean_text missed it, we double check here before printing
                         is_answer = re.search(r'^(correct\s*)?(answer|option|ans)\s*[:\-]', line, re.IGNORECASE)
                         if is_answer:
                             if include_answers:
@@ -198,20 +205,17 @@ class ExportService:
                                 run.font.color.rgb = RGBColor(0, 0, 0)
                                 run.font.name = 'Times New Roman'
                                 run.font.size = Pt(11)
-                            continue # Skip this line if it's an answer (printed or hidden)
+                            continue 
 
                         # --- B. DETECT QUESTIONS ---
-                        # Matches "1.", "Q1", "Question 1"
                         match = re.match(r'^(?:Question|Q)?\s*(\d+)[\.\):]\s*(.*)', line, re.IGNORECASE)
                         if match:
                             q_text = match.group(2).strip()
                             
-                            # Gap between questions
                             if question_counter > 1:
                                 empty_p = doc.add_paragraph()
                                 empty_p.paragraph_format.space_after = Pt(12) 
 
-                            # Question Label
                             q_label = doc.add_paragraph()
                             q_label.paragraph_format.space_after = Pt(0)
                             run = q_label.add_run(f"Question {question_counter}:")
@@ -219,7 +223,6 @@ class ExportService:
                             run.font.name = 'Times New Roman'
                             run.font.size = Pt(11)
 
-                            # Question Text
                             if q_text:
                                 q_body = doc.add_paragraph()
                                 q_body.paragraph_format.space_after = Pt(6)
@@ -240,7 +243,6 @@ class ExportService:
                         
                         # --- D. DETECT OPTIONS ---
                         else:
-                            # Standardize option printing
                             p_opt = doc.add_paragraph()
                             p_opt.paragraph_format.space_after = Pt(0)
                             run = p_opt.add_run(line)
@@ -259,6 +261,10 @@ class ExportService:
 
     @staticmethod
     def docx_stream_to_pdf(docx_stream):
+        if not WINDOWS_COM_AVAILABLE or not convert:
+            print("PDF conversion via Word is only supported on Windows environments.")
+            return None
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp_docx:
             tmp_docx.write(docx_stream.getvalue())
             tmp_docx_path = tmp_docx.name
@@ -276,4 +282,5 @@ class ExportService:
         finally:
             if os.path.exists(tmp_docx_path): os.remove(tmp_docx_path)
             if os.path.exists(tmp_pdf_path): os.remove(tmp_pdf_path)
-            pythoncom.CoUninitialize()
+            if pythoncom:
+                pythoncom.CoUninitialize()
