@@ -7,23 +7,20 @@ import tempfile
 import sys
 from datetime import datetime
 
-# Safely handle Windows-only COM libraries for cross-platform (Linux Azure) compatibility
+# Define safe defaults first to avoid any NameError on Linux
+pythoncom = None
+win32com = None
+convert = None
+WINDOWS_COM_AVAILABLE = False
+
 try:
     if sys.platform.startswith('win'):
         import pythoncom
         import win32com.client
         from docx2pdf import convert
         WINDOWS_COM_AVAILABLE = True
-    else:
-        pythoncom = None
-        win32com.client = None
-        convert = None
-        WINDOWS_COM_AVAILABLE = False
 except ImportError:
-    pythoncom = None
-    win32com.client = None
-    convert = None
-    WINDOWS_COM_AVAILABLE = False
+    pass
 
 class ExportService:
 
