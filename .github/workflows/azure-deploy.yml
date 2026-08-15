@@ -1,7 +1,7 @@
 name: Build and deploy Python app to Azure Web App
 
 env:
-  AZURE_WEBAPP_NAME: ai-teaching-backend
+  AZURE_WEBAPP_NAME: 'aipums'
   PYTHON_VERSION: '3.11'
 
 on:
