@@ -22,4 +22,4 @@ class Config:
     MAX_CONTENT_LENGTH = 10 * 1024 * 1024 
     ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt'}
 
-    FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://ai-teaching-assistant-ecru.vercel.app')
+    FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://ai-teaching-assistant-platform.vercel.app')
