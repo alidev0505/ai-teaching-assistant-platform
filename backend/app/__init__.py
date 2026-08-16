@@ -50,19 +50,21 @@ def create_app():
     app.register_blueprint(student_bp, url_prefix='/api/student')
 
     with app.app_context():
-        # Only create tables if they don't exist, wrapped safely
-        try:
-            db.create_all()
-        except Exception as e:
-            print(f"⚠️ Database initialization notice: {e}")
+        print("🚀 Booting up: App Context created.")
+        
+        # TEMPORARILY COMMENTED OUT TO FIND THE 504 TIMEOUT
+        # try:
+        #     db.create_all()
+        # except Exception as e:
+        #     print(f"⚠️ Database initialization notice: {e}")
 
-        # Lazy-load scheduler without blocking worker startup
-        try:
-            from app.services.scheduler_service import SchedulerService
-            background_worker = SchedulerService(app)
-            background_worker.start()
-            print("🚀 Secure Background Scheduler service active and isolated.")
-        except Exception as e:
-            print(f"⚠️ Non-critical scheduler worker runtime start failure: {e}")
+        # try:
+        #     from app.services.scheduler_service import SchedulerService
+        #     background_worker = SchedulerService(app)
+        #     background_worker.start()
+        # except Exception as e:
+        #     print(f"⚠️ Non-critical scheduler worker runtime start failure: {e}")
+        
+        print("✅ Finished Boot Sequence smoothly!")
 
     return app
