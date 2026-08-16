@@ -19,7 +19,8 @@ class AssessmentService:
     HF_MODEL_URL = "https://api-inference.huggingface.co/models/openai-community/roberta-large-openai-detector"
     
     # Load SBERT model once (Best balance of speed/accuracy for local CPU)
-    comparison_model = SentenceTransformer('all-MiniLM-L6-v2')
+    # FIX: Set to None on boot so the server doesn't crash!
+    comparison_model = None
 
     @staticmethod
     def assess_submission(student_text, teacher_solution, other_student_texts=[]):
@@ -195,6 +196,13 @@ class AssessmentService:
                 
             safe_student = student_text[:5000]
             safe_teacher = teacher_text[:5000]
+            
+            # --- THE LAZY LOADING FIX ---
+            if AssessmentService.comparison_model is None:
+                print("⚡ Lazy loading SBERT model for the first time...")
+                from sentence_transformers import SentenceTransformer
+                AssessmentService.comparison_model = SentenceTransformer('all-MiniLM-L6-v2')
+            # ----------------------------
             
             embeddings = AssessmentService.comparison_model.encode([safe_student, safe_teacher])
             a = embeddings[0]
