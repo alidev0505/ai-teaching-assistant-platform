@@ -2,7 +2,6 @@ import os
 import pickle
 import numpy as np
 import faiss
-from sentence_transformers import SentenceTransformer
 from config import Config
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -25,6 +24,7 @@ class RAGService:
         """Lazy-load the embedding model the first time it is actually needed."""
         if RAGService._model is None:
             print("🔄 Loading embedding model (first use)...")
+            from sentence_transformers import SentenceTransformer
             RAGService._model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
             print("✅ Embedding model loaded.")
         return RAGService._model
